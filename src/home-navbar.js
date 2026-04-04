@@ -1,3 +1,5 @@
+import { getProductCatalogItemsForPath, productCollections } from "./product-catalog-data.js";
+
 const navItems = [
   { href: "/produits", label: "Produits", matches: ["/produits", "/produits/","/produits.html"] },
   { href: "/marques.html", label: "Marques", matches: ["/marques", "/marques/","/marques.html"] },
@@ -103,6 +105,25 @@ const partnerLogos = [
   }
 ];
 
+const nestedCollectionPaths = new Set(
+  productCollections
+    .filter((collection) => collection.path !== "/produits")
+    .map((collection) => collection.path)
+);
+
+function normalizeCategoryPath(pathname) {
+  if (nestedCollectionPaths.has(pathname)) {
+    return `${pathname}/`;
+  }
+
+  return pathname;
+}
+
+if (window.location.pathname !== normalizeCategoryPath(window.location.pathname)) {
+  const target = `${normalizeCategoryPath(window.location.pathname)}${window.location.search}${window.location.hash}`;
+  window.location.replace(target);
+}
+
 function navMarkup() {
   const current = window.location.pathname;
   return navItems
@@ -182,6 +203,34 @@ function replaceHomeMarqueeWithLogos() {
       </div>
     </div>
   `;
+}
+
+function normalizeProductCategoryLinks() {
+  document.querySelectorAll('a[href^="/produits/"]').forEach((link) => {
+    const href = link.getAttribute("href");
+
+    if (!href || href.includes("/p/") || href.endsWith("/") || href.endsWith(".html")) {
+      return;
+    }
+
+    const normalized = normalizeCategoryPath(href);
+    if (normalized !== href) {
+      link.setAttribute("href", normalized);
+    }
+  });
+
+  document.querySelectorAll('option[value^="/produits/"]').forEach((option) => {
+    const value = option.getAttribute("value");
+
+    if (!value || value.includes("/p/") || value.endsWith("/") || value.endsWith(".html")) {
+      return;
+    }
+
+    const normalized = normalizeCategoryPath(value);
+    if (normalized !== value) {
+      option.setAttribute("value", normalized);
+    }
+  });
 }
 
 function replaceMarquesGridWithLogos() {
@@ -357,36 +406,6 @@ function formatMoney(value) {
   }).format(amount);
 }
 
-async function loadProductListItems(productList) {
-  const fromDom = parseJsonAttribute(productList.getAttribute("data-context"));
-
-  if (Array.isArray(fromDom?.items) && fromDom.items.length) {
-    return fromDom.items;
-  }
-
-  try {
-    const response = await fetch(window.location.pathname, {
-      credentials: "same-origin",
-      cache: "no-store"
-    });
-
-    const html = await response.text();
-    const match = html.match(
-      /<div\s+class="product-list"[\s\S]*?data-context="([^"]+)"/i
-    );
-
-    if (!match?.[1]) {
-      return [];
-    }
-
-    const decoded = decodeHtmlEntities(match[1]);
-    const parsed = parseJsonAttribute(decoded);
-    return Array.isArray(parsed?.items) ? parsed.items : [];
-  } catch {
-    return [];
-  }
-}
-
 async function getProductDiscoveryState() {
   const productList = document.querySelector(".product-list[data-controller='ProductList']");
 
@@ -394,11 +413,7 @@ async function getProductDiscoveryState() {
     return null;
   }
 
-  const items = await loadProductListItems(productList);
-
-  if (!items.length) {
-    return null;
-  }
+  const items = getProductCatalogItemsForPath(window.location.pathname);
 
   return {
     root: productList,
@@ -511,8 +526,10 @@ function getProductCardImage(trigger) {
 }
 
 function sanitizeProductDescription(description) {
-  return description && description.trim()
-    ? description
+  const normalized = description ? decodeHtmlEntities(description).trim() : "";
+
+  return normalized
+    ? normalized
     : "<p>Découvrez les textures, teintes et finitions de cette référence dans sa fiche complète.</p>";
 }
 
@@ -858,6 +875,7 @@ async function enableProductDiscoveryOverlay() {
 if (document.readyState === "complete") {
   replaceHomeMarqueeWithLogos();
   replaceMarquesGridWithLogos();
+  normalizeProductCategoryLinks();
   enableCommerceSessionBridge();
   enableProductDiscoveryOverlay();
 } else {
@@ -866,6 +884,7 @@ if (document.readyState === "complete") {
     () => {
       replaceHomeMarqueeWithLogos();
       replaceMarquesGridWithLogos();
+      normalizeProductCategoryLinks();
       enableCommerceSessionBridge();
       enableProductDiscoveryOverlay();
     },
