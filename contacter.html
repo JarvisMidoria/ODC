@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact | Odyssée</title>
+    <meta
+      name="description"
+      content="Contactez Odyssée pour une visite showroom, un projet résidentiel ou une demande contract."
+    />
+    <link rel="icon" href="https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/ca529fb2-ea08-4095-ad9c-b15a09eab42f/favicon.ico?format=100w" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body data-page="contact">
+    <div data-site-shell>
+      <main>
+        <section class="page-hero">
+          <div class="container reveal">
+            <span class="eyebrow">Contact</span>
+            <h1>Une prise de contact plus directe, avec les bonnes raisons d'agir.</h1>
+            <p>
+              Échangez avec l'équipe Odyssée pour une visite showroom, un projet résidentiel ou une
+              demande professionnelle.
+            </p>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="container contact-layout">
+            <div class="contact-panel reveal">
+              <h2>Parlons de votre projet</h2>
+              <form id="contact-form" class="contact-form">
+                <label>
+                  Nom
+                  <input type="text" name="name" placeholder="Votre nom" required />
+                </label>
+                <label>
+                  Email
+                  <input type="email" name="email" placeholder="vous@exemple.com" required />
+                </label>
+                <label>
+                  Sujet
+                  <select name="subject">
+                    <option value="showroom">Visite showroom</option>
+                    <option value="residential">Projet résidentiel</option>
+                    <option value="contract">Projet contract</option>
+                  </select>
+                </label>
+                <label>
+                  Message
+                  <textarea
+                    name="message"
+                    rows="5"
+                    placeholder="Décrivez votre besoin"
+                    required
+                  ></textarea>
+                </label>
+                <button class="button button--primary" type="submit">Envoyer</button>
+                <p id="contact-feedback" class="form-feedback" aria-live="polite"></p>
+              </form>
+            </div>
+
+            <aside class="contact-panel contact-panel--info reveal">
+              <h2>Coordonnées</h2>
+              <ul class="contact-list">
+                <li><strong>Email</strong><span>contact@odyssee.ma</span></li>
+                <li><strong>Téléphone</strong><span>+212 522 612 612</span></li>
+                <li><strong>Casablanca</strong><span>1, Avenue Dr Mohamed Sijelmassi</span></li>
+                <li><strong>Rabat</strong><span>10, Avenue du 16 Novembre - Quartier Agdal</span></li>
+                <li>
+                  <strong>Tanger</strong>
+                  <span>5-6 angle Rue Ibnou Zaidoune et rue Kortoba - Res. Dar Baida IV</span>
+                </li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/generic-page.js"></script>
+  </body>
+</html>
