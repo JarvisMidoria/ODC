@@ -487,7 +487,7 @@ select {
 .page-hero--image {
   background:
     linear-gradient(rgba(19, 16, 14, 0.34), rgba(19, 16, 14, 0.48)),
-    url("https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/900165c1-adfa-4ef4-a8e6-fa303a4f87bc/_5aa3aee3-7ff4-4dac-ace0-9616d518ec1c.jpeg")
+    url("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-900165c1-adfa-4ef4-a8e6-fa303a4f87bc-_5aa3aee3-7ff4-4dac-ace0-9616d518ec1c.jpeg")
       center/cover;
   color: #fff8f1;
 }

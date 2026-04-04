@@ -8,12 +8,12 @@ const navItems = [
 ];
 
 const logo =
-  "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/26b698d0-377c-47da-b63d-ee96b92af221/Odysse%CC%81e+Logo+design+V2.png";
+  "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-26b698d0-377c-47da-b63d-ee96b92af221-odysse-e-logo-design-v2.png";
 
 const partnerLogos = [
   {
     alt: "Clarke & Clarke",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/8f6dd1cf-4d96-4315-aabd-de364e9749b5/clarke-%26-clarke-logo.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-8f6dd1cf-4d96-4315-aabd-de364e9749b5-clarke-clarke-logo.png",
     width: "104px",
     height: "24px",
     basis: "112px",
@@ -23,7 +23,7 @@ const partnerLogos = [
   },
   {
     alt: "Zoffany",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/6c8b16f3-da81-45ca-9c45-50c1b8381a47/ZOFFANY-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-6c8b16f3-da81-45ca-9c45-50c1b8381a47-zoffany-removebg-preview.png",
     width: "82px",
     height: "24px",
     basis: "122px",
@@ -33,7 +33,7 @@ const partnerLogos = [
   },
   {
     alt: "Morris & Co",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/9c502880-a230-409c-b230-614395c3a339/morris-and-co-logo-vector-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-9c502880-a230-409c-b230-614395c3a339-morris-and-co-logo-vector-removebg-preview.png",
     width: "102px",
     height: "24px",
     basis: "122px",
@@ -43,7 +43,7 @@ const partnerLogos = [
   },
   {
     alt: "Harlequin",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/1509a0c9-977a-4a49-8da6-4b3574ff805e/de-mooiste-muren-logo-harlequin-luxe-behang-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1509a0c9-977a-4a49-8da6-4b3574ff805e-de-mooiste-muren-logo-harlequin-luxe-behang-removebg-preview.png",
     width: "108px",
     height: "22px",
     basis: "120px",
@@ -53,7 +53,7 @@ const partnerLogos = [
   },
   {
     alt: "Prestigious",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/1adc85c2-207d-4b47-9ba5-2eb077e26b99/Artboard.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1adc85c2-207d-4b47-9ba5-2eb077e26b99-artboard.png",
     width: "90px",
     height: "24px",
     basis: "132px",
@@ -63,7 +63,7 @@ const partnerLogos = [
   },
   {
     alt: "York Wallcoverings",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/28581e53-e360-4b74-a198-d10c3d6affea/YWC-Logo-2018_400-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-28581e53-e360-4b74-a198-d10c3d6affea-ywc-logo-2018_400-removebg-preview.png",
     width: "104px",
     height: "22px",
     basis: "118px",
@@ -73,7 +73,7 @@ const partnerLogos = [
   },
   {
     alt: "Alessandro Bini",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/48718919-f382-4a0e-9407-3bee26450840/alessandrobini-1.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-48718919-f382-4a0e-9407-3bee26450840-alessandrobini-1.png",
     width: "96px",
     height: "22px",
     basis: "136px",
@@ -83,7 +83,7 @@ const partnerLogos = [
   },
   {
     alt: "Aldeco",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/fb8c5ffa-5640-4ecd-9447-4dd9a045d577/2021-Logo-ALDECO-horiz-1024x724-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-fb8c5ffa-5640-4ecd-9447-4dd9a045d577-2021-logo-aldeco-horiz-1024x724-removebg-preview.png",
     width: "90px",
     height: "24px",
     basis: "128px",
@@ -93,7 +93,7 @@ const partnerLogos = [
   },
   {
     alt: "Pedroso & osorio",
-    src: "https://images.squarespace-cdn.com/content/v1/677ec6234f6cb47c166aec02/0c8a5054-359f-484f-a42e-dcf45ce7c9c2/Screenshot_2025-03-13_at_18.31.50-removebg-preview.png",
+    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-0c8a5054-359f-484f-a42e-dcf45ce7c9c2-screenshot_2025-03-13_at_18.31.50-removebg-preview.png",
     width: "108px",
     height: "22px",
     basis: "118px",
