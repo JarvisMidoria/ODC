@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/custom-assets/(.*)",
+      "destination": "/public/custom-assets/$1"
+    },
+    {
+      "source": "/fonts/(.*)",
+      "destination": "/public/fonts/$1"
+    },
+    {
+      "source": "/mirrored-styles/(.*)",
+      "destination": "/public/mirrored-styles/$1"
+    }
+  ]
+}

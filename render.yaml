@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: odc-auth-api
+    runtime: node
+    plan: starter
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm run api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: ODC_API_PORT
+        value: 10000
+      - key: ODC_DB_PATH
+        value: /var/data/odc.sqlite
+      - key: FRONTEND_ORIGIN
+        sync: false
+    disk:
+      name: odc-auth-data
+      mountPath: /var/data
+      sizeGB: 1

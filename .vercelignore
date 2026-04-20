@@ -1,0 +1,7 @@
+.git
+.vite
+node_modules
+dist
+tmp
+tmp-*.png
+public/custom-assets/odyssee-video-global.mp4

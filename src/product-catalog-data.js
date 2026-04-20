@@ -1,3 +1,5 @@
+import { westV2Products } from "./product-catalog-west-v2.js";
+
 function image(assetUrl, title = "") {
   return {
     title,
@@ -35,339 +37,357 @@ function variant({ id, sku, price, salePrice }) {
   };
 }
 
+function colorway({ id, label, sku, images, description, price = null, salePrice = null }) {
+  return {
+    id,
+    label,
+    sku,
+    price,
+    salePrice,
+    description,
+    images,
+    mainImage: images[0] || null
+  };
+}
+
 const products = [
   {
-    id: "67929aba399b17595f2f1795",
-    title: "1830 col. 09",
-    fullUrl: "/produits/p/1830-col-01-d79r9",
-    urlSlug: "1830-col-01-d79r9",
-    price: { currency: "USD", value: "245.00" },
+    id: "import-alaior",
+    title: "ALAIOR",
+    brand: "Lorenzo Castillo",
+    fullUrl: "/produits/p/alaior",
+    urlSlug: "alaior",
+    price: null,
+    salePrice: null,
     soldOut: false,
     onSale: false,
     description:
-      '&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Tissu obtenu à partir du traitement des résidus de production textile sans agents chimiques nocifs pour l\'homme et l\'environnement (REAC&nbsp;cl1).&lt;/p&gt;&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Ne pas utiliser de détergents contenant des agents oxydants ou éclaircissants.&lt;/p&gt;',
-    variants: [variant({ id: "f6ab7e2b-ee36-43e3-889c-b31badca41e9", sku: "SQ1248762", price: "245.00" })],
-    firstInStockVariant: variant({
-      id: "f6ab7e2b-ee36-43e3-889c-b31badca41e9",
-      sku: "SQ1248762",
-      price: "245.00"
-    }),
+      "<p><strong>Marque:</strong> Lorenzo Castillo</p><p><strong>Type de produit:</strong> Tissu</p><p><strong>Type:</strong> Jacquard</p><p><strong>Dessin:</strong> Geometric, Punto de Hungria</p><p><strong>Martindale:</strong> 25.000</p><p><strong>Usage:</strong> Upholstery</p><p><strong>Code de lavage:</strong> 08, 11, 21, 30, 44</p><p><strong>Repeat horizontal (cm):</strong> 7</p><p><strong>Repeat vertical (cm):</strong> 40</p><p><strong>Largeur (cm):</strong> 138</p><p><strong>Composition:</strong> 26% Viscosa, 28% Poliester, 46% Algodon</p>",
+    variants: [],
+    firstInStockVariant: null,
     userDefinedVariantOptions: [],
     productType: 1,
     images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-f811cd2a-5899-4678-b631-78c84d5bfb3c-saba_1830_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-588baafd-10a1-4657-aad3-147ae13abf87-saba_1830_col.04.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-2df149c0-6599-4d37-a364-9342f59a2a54-saba_1830_col.02.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-56f71f82-ce72-4429-a2e8-147010c9612a-saba_1830_col.03.jpg")
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_azul_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_azul_blanco_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_azul_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2023/06/Tela_gastonydaniela_numantia_alaior_hesperia_botanico_zigzag_hotel_son_net_mallorca_butaca_sofa_tapizado_decoracion_lorenzo_castillo.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_azul_blanco_decoracion_casa_tapizado_ancho.jpg")
     ],
     mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-588baafd-10a1-4657-aad3-147ae13abf87-saba_1830_col.04.jpg",
-      "1830 col. 09"
+      "https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_azul_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg",
+      "ALAIOR AZUL/BLANCO"
     ),
     qtyInStock: Number.MAX_SAFE_INTEGER,
     allowMultiplePurchase: true,
     scarce: false,
     published: true,
-    tags: [],
+    tags: ["Lorenzo Castillo", "Jacquard", "Geometric", "Tapicerie"],
     mightHavePaymentPlan: false,
-    collections: ["all", "recycl"]
-  },
-  {
-    id: "67929a85f4658b422813cdfb",
-    title: "2319 col. 12",
-    fullUrl: "/produits/p/at192-col-16-xgkbt-z6y7l",
-    urlSlug: "at192-col-16-xgkbt-z6y7l",
-    price: { currency: "USD", value: "450.00" },
-    salePrice: { currency: "USD", value: "320.00" },
-    soldOut: false,
-    onSale: true,
-    description: "",
-    variants: [
-      variant({
-        id: "84cf696e-ebc5-44ec-a12a-4b84596a2562",
-        sku: "SQ4145854",
-        price: "450.00",
-        salePrice: "320.00"
+    collections: ["all"],
+    colorways: [
+      colorway({
+        id: "alaior-azul-blanco",
+        label: "Azul/Blanco",
+        sku: "LCT-1106-001",
+        description: "<p><strong>Reference:</strong> LCT-1106-001</p><p><strong>Couleur:</strong> Azul/Blanco</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_azul_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_azul_blanco_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_azul_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2023/06/Tela_gastonydaniela_numantia_alaior_hesperia_botanico_zigzag_hotel_son_net_mallorca_butaca_sofa_tapizado_decoracion_lorenzo_castillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_azul_blanco_decoracion_casa_tapizado_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "alaior-ocre",
+        label: "Ocre",
+        sku: "LCT-1106-005",
+        description: "<p><strong>Reference:</strong> LCT-1106-005</p><p><strong>Couleur:</strong> Ocre</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_ocre_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_ocre_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_ocre_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/06/Tela_alaior_geometrico_ocre_gastonydaniela_lorenzo_castillo_hesperia_mesa_LCT_1106_005-scaled.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_ocre_decoracion_casa_tapizado_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "alaior-azul-verde",
+        label: "Azul/Verde",
+        sku: "LCT-1106-002",
+        description: "<p><strong>Reference:</strong> LCT-1106-002</p><p><strong>Couleur:</strong> Azul/Verde</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_verde_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_verde_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_verde_azul_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2023/06/Tela_gastonydaniela_numantia_alaior_hesperia_botanico_zigzag_hotel_son_net_mallorca_butaca_sofa_tapizado_decoracion_lorenzo_castillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_azul_verde_decoracion_casa_tapizado_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "alaior-azul-ocre",
+        label: "Azul/Ocre",
+        sku: "LCT-1106-003",
+        description: "<p><strong>Reference:</strong> LCT-1106-003</p><p><strong>Couleur:</strong> Azul/Ocre</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_azul_ocre_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_azul_ocre_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_azul_ocre_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2023/06/Tela_gastonydaniela_numantia_alaior_hesperia_botanico_zigzag_hotel_son_net_mallorca_butaca_sofa_tapizado_decoracion_lorenzo_castillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_azul_ocre_decoracion_casa_tapizado_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "alaior-rojo",
+        label: "Rojo",
+        sku: "LCT-1106-004",
+        description: "<p><strong>Reference:</strong> LCT-1106-004</p><p><strong>Couleur:</strong> Rojo</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/08/alaior_rojo_lorenzo_castillo_gastonydaniela_decoracion_casa_tapizado_mueble.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/11/alaior_rojo_hesperia_tela_lorenzo_castillo_gastonydaniela_decoracion_tapiceria_colores.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/02/sofa_aliaor_rojo_decoracion_gastonydaniela_telas_puntohungria_zigzag_tapizado.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2023/06/Tela_gastonydaniela_numantia_alaior_hesperia_botanico_zigzag_hotel_son_net_mallorca_butaca_sofa_tapizado_decoracion_lorenzo_castillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2022/09/Tela_alaior_lorenzo_castillo_gastonydaniela_naranja_rojo_decoracion_casa_tapizado_ancho.jpg")
+        ]
       })
-    ],
-    firstInStockVariant: variant({
-      id: "84cf696e-ebc5-44ec-a12a-4b84596a2562",
-      sku: "SQ4145854",
-      price: "450.00",
-      salePrice: "320.00"
-    }),
-    userDefinedVariantOptions: [],
-    productType: 1,
-    images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-7bcb165f-7b91-4958-af8f-9eac272ee39b-saba_at192_col.13.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-332de297-fee7-4c0a-9863-6793bcab54c2-saba_at192_col.16.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-442c1dc5-bcf9-4c0a-8dc2-65c011fe740c-saba_at192_col.14.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-e9571a75-83dd-4378-b112-fc84112ddfdb-saba_at192_col.03.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-79adb995-59c5-4fc7-b74b-52c313043a67-saba_at192_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-70a213a9-d248-4721-b53a-64b1ce9ccf0e-saba_at192_col.17.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-c15310e0-48a0-4658-8803-95c9d68f81f0-saba_at192_col.02.jpg")
-    ],
-    mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-70a213a9-d248-4721-b53a-64b1ce9ccf0e-saba_at192_col.17.jpg",
-      "2319 col. 12"
-    ),
-    qtyInStock: Number.MAX_SAFE_INTEGER,
-    allowMultiplePurchase: true,
-    scarce: false,
-    published: true,
-    tags: [],
-    mightHavePaymentPlan: false,
-    collections: ["all", "lin"]
+    ]
   },
   {
-    id: "6792987f8cc47759d6486e12",
-    title: "1830 col. 06",
-    fullUrl: "/produits/p/1830-col-01-sj7b9",
-    urlSlug: "1830-col-01-sj7b9",
-    price: { currency: "USD", value: "245.00" },
+    id: "import-acebuche",
+    title: "ACEBUCHE",
+    brand: "Lorenzo Castillo",
+    fullUrl: "/produits/p/acebuche",
+    urlSlug: "acebuche",
+    price: null,
+    salePrice: null,
     soldOut: false,
     onSale: false,
     description:
-      '&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Tissu obtenu à partir du traitement des résidus de production textile sans agents chimiques nocifs pour l\'homme et l\'environnement (REAC&nbsp;cl1).&lt;/p&gt;&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Ne pas utiliser de détergents contenant des agents oxydants ou éclaircissants.&lt;/p&gt;',
-    variants: [variant({ id: "7214de33-3763-4a09-b1d2-f420b7a0f500", sku: "SQ4872142", price: "245.00" })],
-    firstInStockVariant: variant({
-      id: "7214de33-3763-4a09-b1d2-f420b7a0f500",
-      sku: "SQ4872142",
-      price: "245.00"
-    }),
+      "<p><strong>Marque:</strong> Lorenzo Castillo</p><p><strong>Type de produit:</strong> Tissu</p><p><strong>Type:</strong> Velvet</p><p><strong>Dessin:</strong> Geometric</p><p><strong>Martindale:</strong> 50.000</p><p><strong>Usage:</strong> Upholstery</p><p><strong>Code de lavage:</strong> 08, 11, 24, 31, 44</p><p><strong>Repeat horizontal (cm):</strong> 6.5</p><p><strong>Repeat vertical (cm):</strong> 7</p><p><strong>Largeur (cm):</strong> 139</p><p><strong>Composition:</strong> 28% Viscosa, 72% Algodon</p>",
+    variants: [],
+    firstInStockVariant: null,
     userDefinedVariantOptions: [],
     productType: 1,
     images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-f811cd2a-5899-4678-b631-78c84d5bfb3c-saba_1830_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-588baafd-10a1-4657-aad3-147ae13abf87-saba_1830_col.04.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-2df149c0-6599-4d37-a364-9342f59a2a54-saba_1830_col.02.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-56f71f82-ce72-4429-a2e8-147010c9612a-saba_1830_col.03.jpg")
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
     ],
     mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-2df149c0-6599-4d37-a364-9342f59a2a54-saba_1830_col.02.jpg",
-      "1830 col. 06"
+      "https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg",
+      "ACEBUCHE AZUL/NAVY"
     ),
     qtyInStock: Number.MAX_SAFE_INTEGER,
     allowMultiplePurchase: true,
     scarce: false,
     published: true,
-    tags: [],
+    tags: ["Lorenzo Castillo", "Tapicerie", "Velvet", "Geometric"],
     mightHavePaymentPlan: false,
-    collections: ["all"]
-  },
-  {
-    id: "679298469fa4d3550f9f6abe",
-    title: "2319 col. 17",
-    fullUrl: "/produits/p/at192-col-16-xgkbt",
-    urlSlug: "at192-col-16-xgkbt",
-    price: { currency: "USD", value: "450.00" },
-    salePrice: { currency: "USD", value: "320.00" },
-    soldOut: false,
-    onSale: true,
-    description: "",
-    variants: [
-      variant({
-        id: "7ad6cc06-d12f-4b37-ba1d-4b20b6ed5bac",
-        sku: "SQ6463557",
-        price: "450.00",
-        salePrice: "320.00"
+    collections: ["all"],
+    colorways: [
+      colorway({
+        id: "acebuche-azul-navy",
+        label: "Azul/Navy",
+        sku: "LCT-1165-006",
+        description: "<p><strong>Reference:</strong> LCT-1165-006</p><p><strong>Couleur:</strong> Azul/Navy</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_006_tela_acebuche_azul_navy_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-navy-azul",
+        label: "Navy/Azul",
+        sku: "LCT-1165-007",
+        description: "<p><strong>Reference:</strong> LCT-1165-007</p><p><strong>Couleur:</strong> Navy/Azul</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_007_tela_acebuche_navy_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_007_tela_acebuche_navy_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_navy_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_007_tela_acebuche_navy_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-oro-azul",
+        label: "Oro/Azul",
+        sku: "LCT-1165-008",
+        description: "<p><strong>Reference:</strong> LCT-1165-008</p><p><strong>Couleur:</strong> Oro/Azul</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_008_tela_acebuche_oro_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_008_tela_acebuche_oro_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_oro_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_008_tela_acebuche_oro_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-chocolate-naranja",
+        label: "Chocolate/Naranja",
+        sku: "LCT-1165-004",
+        description: "<p><strong>Reference:</strong> LCT-1165-004</p><p><strong>Couleur:</strong> Chocolate/Naranja</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_004_tela_acebuche_chocolate_naranja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_004_tela_acebuche_chocolate_naranja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_chocolate_naranja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_004_tela_acebuche_chocolate_naranja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-topo-beige",
+        label: "Topo/Beige",
+        sku: "LCT-1165-005",
+        description: "<p><strong>Reference:</strong> LCT-1165-005</p><p><strong>Couleur:</strong> Topo/Beige</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_005_tela_acebuche_topo_beige_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_005_tela_acebuche_topo_beige_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_topo_beige_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_005_tela_acebuche_topo_beige_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-burdeos-verde",
+        label: "Burdeos/Verde",
+        sku: "LCT-1165-002",
+        description: "<p><strong>Reference:</strong> LCT-1165-002</p><p><strong>Couleur:</strong> Burdeos/Verde</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_002_tela_acebuche_verde_burdeos_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_002_tela_acebuche_verde_burdeos_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_verde_burdeos_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_002_tela_acebuche_verde_burdeos_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-verde-teja",
+        label: "Verde/Teja",
+        sku: "LCT-1165-003",
+        description: "<p><strong>Reference:</strong> LCT-1165-003</p><p><strong>Couleur:</strong> Verde/Teja</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_003_tela_acebuche_verde_teja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_003_tela_acebuche_verde_teja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_verde_teja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Telas_banqueta_acebuche_verde_lorenzocastillo_gastonydaniela_terciopelo_geometrico_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_003_tela_acebuche_verde_teja_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "acebuche-verde-azul",
+        label: "Verde/Azul",
+        sku: "LCT-1165-001",
+        description: "<p><strong>Reference:</strong> LCT-1165-001</p><p><strong>Couleur:</strong> Verde/Azul</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_001_tela_acebuche_verde_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/LCT_1165_001_tela_acebuche_verde_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_detalle.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/06/Sofa_tela_acebuche_verde_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/09/Sofa_tapizado_tela_algendar_puffs_tapizados_lorenzocastillo_gastonydaniela_terciopelo_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2024/07/LCT_1165_001_tela_acebuche_verde_azul_gastonydaniela_lorenzocastillo_geometrico_tapiceria_algodon_decoracion_ancho.jpg")
+        ]
       })
-    ],
-    firstInStockVariant: variant({
-      id: "7ad6cc06-d12f-4b37-ba1d-4b20b6ed5bac",
-      sku: "SQ6463557",
-      price: "450.00",
-      salePrice: "320.00"
-    }),
-    userDefinedVariantOptions: [],
-    productType: 1,
-    images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-7bcb165f-7b91-4958-af8f-9eac272ee39b-saba_at192_col.13.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-332de297-fee7-4c0a-9863-6793bcab54c2-saba_at192_col.16.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-442c1dc5-bcf9-4c0a-8dc2-65c011fe740c-saba_at192_col.14.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-e9571a75-83dd-4378-b112-fc84112ddfdb-saba_at192_col.03.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-79adb995-59c5-4fc7-b74b-52c313043a67-saba_at192_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-70a213a9-d248-4721-b53a-64b1ce9ccf0e-saba_at192_col.17.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-c15310e0-48a0-4658-8803-95c9d68f81f0-saba_at192_col.02.jpg")
-    ],
-    mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-332de297-fee7-4c0a-9863-6793bcab54c2-saba_at192_col.16.jpg",
-      "2319 col. 17"
-    ),
-    qtyInStock: Number.MAX_SAFE_INTEGER,
-    allowMultiplePurchase: true,
-    scarce: false,
-    published: true,
-    tags: [],
-    mightHavePaymentPlan: false,
-    collections: ["all"]
+    ]
   },
   {
-    id: "679296c8a165a16c98b57438",
-    title: "2319 col. 16",
-    fullUrl: "/produits/p/at192-col-16",
-    urlSlug: "at192-col-16",
-    price: { currency: "USD", value: "450.00" },
-    salePrice: { currency: "USD", value: "320.00" },
-    soldOut: false,
-    onSale: true,
-    description: "",
-    variants: [
-      variant({
-        id: "2150f13b-69e7-4ff6-bbbe-4a1f79be1965",
-        sku: "SQ6667825",
-        price: "450.00",
-        salePrice: "320.00"
-      })
-    ],
-    firstInStockVariant: variant({
-      id: "2150f13b-69e7-4ff6-bbbe-4a1f79be1965",
-      sku: "SQ6667825",
-      price: "450.00",
-      salePrice: "320.00"
-    }),
-    userDefinedVariantOptions: [],
-    productType: 1,
-    images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-79adb995-59c5-4fc7-b74b-52c313043a67-saba_at192_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-c15310e0-48a0-4658-8803-95c9d68f81f0-saba_at192_col.02.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-e9571a75-83dd-4378-b112-fc84112ddfdb-saba_at192_col.03.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-70a213a9-d248-4721-b53a-64b1ce9ccf0e-saba_at192_col.17.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-7bcb165f-7b91-4958-af8f-9eac272ee39b-saba_at192_col.13.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-442c1dc5-bcf9-4c0a-8dc2-65c011fe740c-saba_at192_col.14.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-332de297-fee7-4c0a-9863-6793bcab54c2-saba_at192_col.16.jpg")
-    ],
-    mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-79adb995-59c5-4fc7-b74b-52c313043a67-saba_at192_col.01.jpg",
-      "2319 col. 16"
-    ),
-    qtyInStock: Number.MAX_SAFE_INTEGER,
-    allowMultiplePurchase: true,
-    scarce: false,
-    published: true,
-    tags: [],
-    mightHavePaymentPlan: false,
-    collections: ["all"]
-  },
-  {
-    id: "67929649a165a16c98b5736b",
-    title: "1835 col. 02",
-    fullUrl: "/produits/p/1835-col-02",
-    urlSlug: "1835-col-02",
-    price: { currency: "USD", value: "260.00" },
+    id: "import-wyatt",
+    title: "WYATT",
+    brand: "Gaston y Daniela",
+    fullUrl: "/produits/p/wyatt",
+    urlSlug: "wyatt",
+    price: null,
+    salePrice: null,
     soldOut: false,
     onSale: false,
     description:
-      '&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Tissu obtenu avec des pourcentages élevés de fils écologiques provenant de déchets de production (TNT, FILS SYNTHÉTIQUES). Résistant au chlore et à l\'eau de mer.&lt;/p&gt;&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Ne pas blanchir, ne pas utiliser de détergents contenant des agents oxydants ou éclaircissants.&lt;/p&gt;',
-    variants: [variant({ id: "a33be549-ed7c-4bf7-be67-9e19094103e4", sku: "SQ1774665", price: "260.00" })],
-    firstInStockVariant: variant({
-      id: "a33be549-ed7c-4bf7-be67-9e19094103e4",
-      sku: "SQ1774665",
-      price: "260.00"
-    }),
+      "<p><strong>Marque:</strong> Gaston y Daniela</p><p><strong>Type de produit:</strong> Tissu</p><p><strong>Type:</strong> Tapiceria con dibujo</p><p><strong>Dessin:</strong> Geometrique</p><p><strong>Martindale:</strong> 30.000</p><p><strong>Usage:</strong> Tapicerie</p><p><strong>Code de lavage:</strong> 08, 11, 21, 31, 44, 60</p><p><strong>Repeat horizontal (cm):</strong> 52.5</p><p><strong>Repeat vertical (cm):</strong> 25.5</p><p><strong>Largeur (cm):</strong> 140</p><p><strong>Composition:</strong> 6% Poliester, 7% Lana, 9% Acrilico, 28% Algodon recycle, 50% Yute</p>",
+    variants: [],
+    firstInStockVariant: null,
     userDefinedVariantOptions: [],
     productType: 1,
     images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-5a66919a-4dfd-49d8-a755-580b6277c3b4-saba_1835_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-6da45a3e-7fe9-4e22-8ff9-62a27664a006-saba_1835_col.02.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-79f80c81-694e-423c-b112-5942fbc18d31-saba_1835_col.07.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-4a132a65-c7dd-4c5a-b184-0c5dbf589e16-saba_1835_col.08.jpg")
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_001_wyatt_verde_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_verde.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/11/wyatt_verde.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2026/01/mesa_wyatt_salon_almohadon_decoracion_gaston_y_daniela-scaled.jpg"),
+      image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_verde_ancho.jpg")
     ],
     mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-5a66919a-4dfd-49d8-a755-580b6277c3b4-saba_1835_col.01.jpg",
-      "1835 col. 02"
+      "https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_001_wyatt_verde_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg",
+      "WYATT VERDE"
     ),
     qtyInStock: Number.MAX_SAFE_INTEGER,
     allowMultiplePurchase: true,
     scarce: false,
     published: true,
-    tags: [],
+    tags: ["Gaston y Daniela", "West", "El Dorado", "Tapicerie"],
     mightHavePaymentPlan: false,
-    collections: ["all"]
-  },
-  {
-    id: "679295d96c9a8e41d1c23f24",
-    title: "1830 col. 01",
-    fullUrl: "/produits/p/1830-col-01",
-    urlSlug: "1830-col-01",
-    price: { currency: "USD", value: "245.00" },
-    soldOut: false,
-    onSale: false,
-    description:
-      '&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Tissu obtenu à partir du traitement des résidus de production textile sans agents chimiques nocifs pour l\'homme et l\'environnement (REAC&nbsp;cl1).&lt;/p&gt;&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Ne pas utiliser de détergents contenant des agents oxydants ou éclaircissants.&lt;/p&gt;',
-    variants: [variant({ id: "1b591933-b0c6-4584-b623-203a14867f07", sku: "SQ8791352", price: "245.00" })],
-    firstInStockVariant: variant({
-      id: "1b591933-b0c6-4584-b623-203a14867f07",
-      sku: "SQ8791352",
-      price: "245.00"
-    }),
-    userDefinedVariantOptions: [],
-    productType: 1,
-    images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-f811cd2a-5899-4678-b631-78c84d5bfb3c-saba_1830_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-2df149c0-6599-4d37-a364-9342f59a2a54-saba_1830_col.02.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-56f71f82-ce72-4429-a2e8-147010c9612a-saba_1830_col.03.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-588baafd-10a1-4657-aad3-147ae13abf87-saba_1830_col.04.jpg")
-    ],
-    mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-f811cd2a-5899-4678-b631-78c84d5bfb3c-saba_1830_col.01.jpg",
-      "1830 col. 01"
-    ),
-    qtyInStock: Number.MAX_SAFE_INTEGER,
-    allowMultiplePurchase: true,
-    scarce: false,
-    published: true,
-    tags: [],
-    mightHavePaymentPlan: false,
-    collections: ["all"]
-  },
-  {
-    id: "67928f786c9a8e41d1c23645",
-    title: "1807 col. 1",
-    fullUrl: "/produits/p/1807-col-1",
-    urlSlug: "1807-col-1",
-    price: { currency: "USD", value: "220.00" },
-    salePrice: { currency: "USD", value: "180.00" },
-    soldOut: false,
-    onSale: true,
-    description:
-      '&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Tissu obtenu à partir du traitement des déchets plastiques sans agents chimiques nocifs pour l\'homme et l\'environnement (REAC&nbsp;cl1).&lt;/p&gt;&lt;p style="white-space:pre-wrap;" data-rte-preserve-empty="true"&gt;Ne pas utiliser de détergents contenant des agents oxydants ou éclaircissants.&lt;/p&gt;',
-    variants: [
-      variant({
-        id: "fa4379f4-77dd-4a15-8ebb-d4d1cc2d9145",
-        sku: "SQ8778882",
-        price: "220.00",
-        salePrice: "180.00"
+    collections: ["all"],
+    colorways: [
+      colorway({
+        id: "wyatt-verde",
+        label: "Verde",
+        sku: "GDT-5864-001",
+        description:
+          "<p><strong>Reference:</strong> GDT-5864-001</p><p><strong>Couleur:</strong> Gama verdes</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_001_wyatt_verde_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_verde.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/11/wyatt_verde.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2026/01/mesa_wyatt_salon_almohadon_decoracion_gaston_y_daniela-scaled.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_verde_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "wyatt-amarillo",
+        label: "Amarillo",
+        sku: "GDT-5864-004",
+        description:
+          "<p><strong>Reference:</strong> GDT-5864-004</p><p><strong>Couleur:</strong> Amarillo</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_004_wyatt_amarillo_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_amarillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/11/wyatt_amarillo.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2026/01/mesa_wyatt_salon_almohadon_decoracion_gaston_y_daniela-scaled.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_amarillo_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "wyatt-azul",
+        label: "Azul",
+        sku: "GDT-5864-003",
+        description:
+          "<p><strong>Reference:</strong> GDT-5864-003</p><p><strong>Couleur:</strong> Azul</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_003_wyatt_azul_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_azul.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/11/wyatt_azul.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2026/01/mesa_wyatt_salon_almohadon_decoracion_gaston_y_daniela-scaled.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_azul_ancho.jpg")
+        ]
+      }),
+      colorway({
+        id: "wyatt-naranja",
+        label: "Naranja",
+        sku: "GDT-5864-002",
+        description:
+          "<p><strong>Reference:</strong> GDT-5864-002</p><p><strong>Couleur:</strong> Naranja</p>",
+        images: [
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/GDT_5864_002_wyatt_naranja_tela_west_gastonydaniela_raya_cortinas_algodon_lino_decoracion.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_naranja.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/11/wyatt_naranja.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2026/01/mesa_wyatt_salon_almohadon_decoracion_gaston_y_daniela-scaled.jpg"),
+          image("https://gastonydaniela.com/catalogo/wp-content/uploads/2025/12/Wyatt_naranja_ancho.jpg")
+        ]
       })
-    ],
-    firstInStockVariant: variant({
-      id: "fa4379f4-77dd-4a15-8ebb-d4d1cc2d9145",
-      sku: "SQ8778882",
-      price: "220.00",
-      salePrice: "180.00"
-    }),
-    userDefinedVariantOptions: [],
-    productType: 1,
-    images: [
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-a8ee61eb-3537-4d85-b27e-1f8744e561b1-saba_1807_col.01.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-4a49590b-1be6-499c-bff8-d629285efe5c-saba_1807_col.02-1.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-b76f249c-07c2-4b24-b11f-284e30c2251a-saba_1807_col.17.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-b2d14bc4-abd8-4d62-b6e1-26f45679f997-saba_1807_col.13.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-b6cc69d2-04d9-4dc8-b671-c109ca632db6-saba_1807_col.09.jpg"),
-      image("/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-34b1e9aa-38b6-48ef-b469-64b79e8fb6a5-saba_1807_col.85.jpg")
-    ],
-    mainImage: image(
-      "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-a8ee61eb-3537-4d85-b27e-1f8744e561b1-saba_1807_col.01.jpg",
-      "1807 col. 1"
-    ),
-    qtyInStock: Number.MAX_SAFE_INTEGER,
-    allowMultiplePurchase: true,
-    scarce: false,
-    published: true,
-    tags: [],
-    mightHavePaymentPlan: false,
-    collections: ["all"]
-  }
+    ]
+  },
+  ...westV2Products
 ];
 
 export const productCollections = [
@@ -390,6 +410,18 @@ const collectionByPath = new Map(
 
 export const productCatalogItems = products;
 
+const productByPath = new Map(
+  productCatalogItems.flatMap((product) => [
+    [product.fullUrl, product],
+    [`${product.fullUrl}/`, product],
+    [`${product.fullUrl}.html`, product]
+  ])
+);
+
+const productById = new Map(
+  productCatalogItems.map((product) => [product.id, product])
+);
+
 export function getProductCollectionForPath(pathname) {
   return collectionByPath.get(pathname) || collectionByPath.get(pathname.replace(/\/$/, ""));
 }
@@ -402,4 +434,16 @@ export function getProductCatalogItemsForPath(pathname) {
   }
 
   return productCatalogItems.filter((item) => item.collections.includes(collection.id));
+}
+
+export function getProductCatalogItemForPath(pathname) {
+  return (
+    productByPath.get(pathname) ||
+    productByPath.get(pathname.replace(/\/$/, "")) ||
+    null
+  );
+}
+
+export function getProductCatalogItemById(productId) {
+  return productById.get(productId) || null;
 }

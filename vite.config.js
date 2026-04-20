@@ -54,10 +54,24 @@ function proxiedRoute() {
 export default defineConfig({
   server: {
     proxy: {
+      "/api/auth": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true
+      },
+      "/api/samples": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true
+      },
+      "/api/favorites": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true
+      },
+      "/api/admin": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true
+      },
       "/api": proxiedRoute(),
       "/assets": proxiedRoute(),
-      "/cart": proxiedRoute(),
-      "/checkout": proxiedRoute(),
       "/universal": proxiedRoute()
     }
   },

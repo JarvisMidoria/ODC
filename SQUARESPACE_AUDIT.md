@@ -1,6 +1,6 @@
 # Audit de dépendance Squarespace
 
-Date: 2026-04-04
+Date: 2026-04-05
 
 ## Résumé
 
@@ -9,7 +9,7 @@ Date: 2026-04-04
 - Volume actuel: `64` fichiers, environ `18 MB`
 - Références d'images externes restantes dans le code: `0`
 
-Le site n'est donc plus dépendant de Squarespace pour les images. En revanche, il reste encore fortement dépendant de Squarespace pour le HTML cloné, les scripts runtime, le commerce, et la structure DOM.
+Le site n'est donc plus dépendant de Squarespace pour les images. La zone `produits` est maintenant largement autonomisée côté données, runtime, styles et panier local. En revanche, le site reste encore dépendant de Squarespace pour les shells HTML clonés, plusieurs pages statiques, et le footer/newsletter hérités.
 
 ## Dépendances restantes
 
@@ -20,6 +20,8 @@ Impact: élevé
 Constat:
 - `29` fichiers chargent encore des scripts ou styles depuis `assets.squarespace.com` ou `static1.squarespace.com`
 - `29` fichiers embarquent encore `SQUARESPACE_CONTEXT`
+- la zone `produits` ne charge plus de scripts JS Squarespace au runtime
+- les pages `produits` gardent encore des CSS externes Squarespace pour préserver le rendu exact
 
 Exemples:
 - `index.html`
@@ -39,7 +41,14 @@ Effets:
 - Build Vite bruyant à cause du HTML invalide exporté tel quel depuis Squarespace
 - Forte difficulté à contrôler précisément les interactions
 
-### 2. Commerce encore branché sur Squarespace
+Etat actuel de la zone `produits`:
+- scripts JS Squarespace supprimés des pages catalogue et fiches
+- `site-bundle` Squarespace supprimé
+- `SQUARESPACE_CONTEXT` et bootstrap JS supprimés
+- CSS Squarespace et `sqspcdn` maintenant mirrorrés localement
+- aucune feuille de style distante Squarespace encore chargée au runtime sur `produits`
+
+### 2. Commerce encore partiellement non local
 
 Impact: élevé
 
@@ -48,41 +57,43 @@ Fichiers principaux:
 - `vite.config.js`
 - `cart/index.html`
 - `panier/index.html`
+- `src/cart-store.js`
 
 Constat:
-- le code utilise encore `/cart`, `/checkout`, `/api/commerce/*`
-- le dev server proxy encore:
-  - `/api`
-  - `/assets`
-  - `/cart`
-  - `/checkout`
-  - `/universal`
+- le panier est maintenant local:
+  - stockage `localStorage`
+  - compteur local
+  - page `/cart` locale
+  - ajout au panier local depuis les fiches produit
+- le proxy Vite ne sert plus `/cart` ni `/checkout`
+- le checkout n'est pas encore réimplémenté en local
+- quelques pages hors zone produit gardent encore une icône panier et du markup Squarespace autour du compteur
 
 Effets:
-- le panier et le checkout ne sont pas autonomes
-- l'expérience produit reste fragile tant que les fiches produit ne sont pas réécrites
-- le site local dépend encore du domaine `www.odyssee.ma` pour une partie du flux commerce
+- le panier ne dépend plus du domaine `www.odyssee.ma`
+- le checkout final reste à concevoir
+- les pages statiques gardent encore du bruit Squarespace autour du panier visuel
 
 ### 3. Catalogue produit encore couplé au DOM Squarespace
 
-Impact: moyen à élevé
+Impact: faible à moyen
 
 Fichier principal:
 - `src/home-navbar.js`
 
 Constat:
 - la grille `Produits` est maintenant pilotée par notre couche custom
-- mais elle lit encore les données depuis le HTML Squarespace cloné:
-  - `.product-list[data-controller='ProductList']`
-  - `data-context`
+- les données produit viennent maintenant d'une source locale:
+  - `src/product-catalog-data.js`
+- le HTML Squarespace sert encore de shell visuel, mais plus de source de vérité produit
 
 Effets:
-- si le markup source change, notre couche peut casser
-- les données produit ne sont pas encore dans une source canonique locale
+- la structure DOM reste encore héritée de Squarespace
+- un resync HTML peut encore réintroduire du bruit inutile si on ne refait pas le shell plus tard
 
 ### 4. Fiches produit encore 100% Squarespace
 
-Impact: élevé
+Impact: moyen
 
 Exemples:
 - `produits/p/1830-col-01/index.html`
@@ -90,18 +101,22 @@ Exemples:
 - `produits/p/at192-col-16/index.html`
 
 Constat:
-- ces pages sont encore des exports Squarespace quasi bruts
-- elles incluent encore:
-  - `SQUARESPACE_CONTEXT`
-  - scripts commerce Squarespace
-  - markup galerie Squarespace
-  - forms/newsletter/footer Squarespace
-  - appels JS du type `Y.use(...)`
+- ces pages restent des exports Squarespace comme base HTML
+- mais leur runtime produit est maintenant local:
+  - données locales
+  - galerie locale
+  - quantité locale
+  - rendu produit local
+  - ajout au panier local
+- elles gardent encore:
+  - shell HTML Squarespace
+  - footer/newsletter Squarespace
+  - classes et structure CSS héritées de Squarespace, mais servies localement
 
 Effets:
-- très forte dette technique
-- difficile de styliser et stabiliser finement
-- la vraie suppression de la dépendance produit ne sera complète qu'après réécriture de ces pages
+- dette technique réduite côté produit
+- dépendance restante surtout structurelle et commerce
+- la suppression complète passera par un shell HTML/CSS local puis par le remplacement du commerce
 
 ### 5. Pages statiques encore issues d'un sync distant
 
@@ -138,6 +153,12 @@ Effets:
 - Les images officielles utilisées par le projet ont été rapatriées localement.
 - Les logos de marque, visuels home, visuels ambiance, visuels produits et favicon ne dépendent plus du CDN Squarespace.
 - La grille `Produits` et la modale catalogue n'utilisent plus le comportement de clic Squarespace.
+- La source de vérité du catalogue produit est locale.
+- Les fiches produit `/produits/p/...` n'utilisent plus `ProductDetail` au runtime.
+- La zone `produits` ne charge plus de scripts JS Squarespace au runtime.
+- La zone `produits` ne charge plus non plus de feuilles de style distantes Squarespace au runtime.
+- Le panier `/cart` ne passe plus par Squarespace.
+- Le proxy Vite ne route plus `/cart` ni `/checkout` vers `odyssee.ma`.
 
 ## Plan recommandé pour retirer Squarespace progressivement
 
@@ -165,14 +186,14 @@ Résultat:
 
 ### Phase 3
 
-Objectif: sortir du commerce Squarespace
+Objectif: terminer le flux commerce local
 
-- remplacer `/cart` et `/checkout`
-- retirer le proxy commerce de `vite.config.js`
-- supprimer `ensureCommerceSession`, `patchCommerceRequests`, et le bridge panier dans `src/home-navbar.js`
+- remplacer le checkout par une étape locale ou un connecteur externe
+- nettoyer les restes visuels panier Squarespace dans les pages statiques
+- retirer les helpers commerce morts éventuels
 
 Résultat:
-- plus de dépendance runtime à Squarespace pour l'achat
+- plus de dépendance runtime à Squarespace pour le parcours achat
 
 ### Phase 4
 
@@ -191,7 +212,7 @@ Ordre conseillé:
 
 1. Figer les données produit localement
 2. Refaire les fiches produit
-3. Supprimer le proxy commerce
+3. Finaliser le checkout local ou sa future intégration externe
 4. Réécrire les pages statiques une par une
 
 Si on suit cet ordre, on retire d'abord la partie la plus fragile, sans casser l'apparence du site.
