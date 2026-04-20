@@ -10,6 +10,7 @@ const SESSION_COOKIE = "odc_prof_session";
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 const AUTH_WINDOW_MS = 1000 * 60 * 15;
 const AUTH_MAX_ATTEMPTS = 8;
+const SAMPLE_ORDER_STATUSES = new Set(["pending", "processing", "completed"]);
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || "").trim().replace(/\/+$/, "");
 const API_ALLOWED_ORIGINS = [
   FRONTEND_ORIGIN,
@@ -18,6 +19,12 @@ const API_ALLOWED_ORIGINS = [
     .map((value) => value.trim().replace(/\/+$/, ""))
     .filter(Boolean)
 ];
+const ADMIN_EMAILS = new Set(
+  String(process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const app = express();
 app.set("trust proxy", 1);
@@ -56,8 +63,13 @@ function sanitizeUser(row) {
     profession: row.profession,
     status: row.status,
     role: row.role,
+    sampleLimit: Number.isFinite(Number(row.sample_limit)) ? Math.max(0, Number(row.sample_limit)) : null,
     createdAt: row.created_at
   };
+}
+
+function isAdminUser(user) {
+  return user?.role === "admin";
 }
 
 function setSessionCookie(res, token) {
@@ -98,18 +110,129 @@ function listFavoriteProductIds(userId) {
     .map((row) => row.product_id);
 }
 
+function listPendingSampleProductIds(userId) {
+  return db
+    .prepare(`SELECT product_id FROM professional_sample_cart WHERE user_id = ? ORDER BY id DESC`)
+    .all(userId)
+    .map((row) => row.product_id);
+}
+
+function getEffectiveSampleLimit(userOrUserId) {
+  if (userOrUserId && typeof userOrUserId === "object") {
+    const directLimit = Number(userOrUserId.sampleLimit ?? userOrUserId.sample_limit);
+    if (Number.isFinite(directLimit)) {
+      return Math.max(0, Math.floor(directLimit));
+    }
+    if (Number.isInteger(userOrUserId.id) && userOrUserId.id > 0) {
+      return getEffectiveSampleLimit(userOrUserId.id);
+    }
+    return PROFESSIONAL_SAMPLE_LIMIT;
+  }
+
+  const userId = Number(userOrUserId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return PROFESSIONAL_SAMPLE_LIMIT;
+  }
+
+  const row = db.prepare(`SELECT sample_limit FROM professional_users WHERE id = ?`).get(userId);
+  const sampleLimit = Number(row?.sample_limit);
+  return Number.isFinite(sampleLimit)
+    ? Math.max(0, Math.floor(sampleLimit))
+    : PROFESSIONAL_SAMPLE_LIMIT;
+}
+
+function sanitizePendingSampleProductIds(userId, productIds) {
+  const normalized = [...new Set(productIds.map((item) => String(item || "").trim()).filter(Boolean))];
+  const requestedIds = new Set(
+    db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ?`).all(userId).map((row) => row.product_id)
+  );
+  const samplesUsed = requestedIds.size;
+  const sampleLimit = getEffectiveSampleLimit(userId);
+  const remainingSlots = Math.max(0, sampleLimit - samplesUsed);
+
+  return normalized
+    .filter((productId) => !requestedIds.has(productId))
+    .slice(0, remainingSlots);
+}
+
+function replacePendingSampleProductIds(userId, productIds) {
+  const sanitized = sanitizePendingSampleProductIds(userId, productIds);
+
+  const replace = db.transaction((items) => {
+    db.prepare(`DELETE FROM professional_sample_cart WHERE user_id = ?`).run(userId);
+    const insert = db.prepare(`INSERT INTO professional_sample_cart (user_id, product_id) VALUES (?, ?)`);
+    items.forEach((productId) => {
+      insert.run(userId, productId);
+    });
+  });
+
+  replace(sanitized);
+  return sanitized;
+}
+
+function listSampleOrders() {
+  const orders = db.prepare(`
+    SELECT
+      o.id,
+      o.user_id,
+      o.phone_snapshot,
+      o.status,
+      o.admin_notes,
+      o.created_at,
+      o.submitted_at,
+      u.first_name,
+      u.last_name,
+      u.email
+    FROM sample_orders o
+    INNER JOIN professional_users u ON u.id = o.user_id
+    ORDER BY o.submitted_at DESC, o.id DESC
+  `).all();
+
+  const itemRows = db.prepare(`
+    SELECT
+      soi.order_id,
+      soi.product_id
+    FROM sample_order_items soi
+    ORDER BY soi.order_id DESC, soi.id ASC
+  `).all();
+
+  const itemsByOrderId = new Map();
+  itemRows.forEach((row) => {
+    const current = itemsByOrderId.get(row.order_id) || [];
+    current.push(row.product_id);
+    itemsByOrderId.set(row.order_id, current);
+  });
+
+  return orders.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    phone: row.phone_snapshot,
+    status: row.status,
+    adminNotes: row.admin_notes || "",
+    createdAt: row.created_at,
+    submittedAt: row.submitted_at,
+    productIds: itemsByOrderId.get(row.id) || []
+  }));
+}
+
 function buildSessionPayload(user) {
   const sampleRows = db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ? ORDER BY id DESC`).all(user.id);
   const samplesUsed = sampleRows.length;
+  const sampleLimit = getEffectiveSampleLimit(user);
   const favoriteProductIds = listFavoriteProductIds(user.id);
+  const pendingSampleProductIds = listPendingSampleProductIds(user.id);
 
   return {
     authenticated: true,
     user,
-    sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
+    sampleLimit,
     samplesUsed,
-    samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - samplesUsed),
+    samplesRemaining: Math.max(0, sampleLimit - samplesUsed),
     sampleProductIds: sampleRows.map((row) => row.product_id),
+    pendingSampleProductIds,
     favoriteProductIds
   };
 }
@@ -151,12 +274,65 @@ function requireSession(req, res, next) {
     return;
   }
 
+  if (session.user.status && session.user.status !== "active") {
+    db.prepare(`DELETE FROM professional_sessions WHERE token = ?`).run(session.token);
+    clearSessionCookie(res);
+    res.status(403).json({ error: "Ce compte n’est pas actif." });
+    return;
+  }
+
   req.professionalSession = session;
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  const session = getSession(req);
+  if (!session) {
+    res.status(401).json({ error: "Session administrateur requise." });
+    return;
+  }
+
+  syncConfiguredAdminRoleByEmail(session.user.email);
+  const user = sanitizeUser(getUserById(session.user.id) || session.user);
+
+  if (user?.status && user.status !== "active") {
+    db.prepare(`DELETE FROM professional_sessions WHERE token = ?`).run(session.token);
+    clearSessionCookie(res);
+    res.status(403).json({ error: "Ce compte n’est pas actif." });
+    return;
+  }
+
+  if (!isAdminUser(user)) {
+    res.status(403).json({ error: "Accès administrateur requis." });
+    return;
+  }
+
+  req.professionalSession = {
+    ...session,
+    user
+  };
   next();
 }
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
+}
+
+function syncConfiguredAdminRoleByEmail(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !ADMIN_EMAILS.has(normalizedEmail)) {
+    return;
+  }
+
+  db.prepare(`UPDATE professional_users SET role = 'admin' WHERE email = ? AND role != 'admin'`).run(normalizedEmail);
+}
+
+function getUserByEmail(email) {
+  return db.prepare(`SELECT * FROM professional_users WHERE email = ?`).get(normalizeEmail(email));
+}
+
+function getUserById(userId) {
+  return db.prepare(`SELECT * FROM professional_users WHERE id = ?`).get(userId);
 }
 
 function getAuthLimiterKey(req, email = "") {
@@ -206,12 +382,31 @@ app.get("/api/auth/me", (req, res) => {
       samplesUsed: 0,
       samplesRemaining: PROFESSIONAL_SAMPLE_LIMIT,
       sampleProductIds: [],
+      pendingSampleProductIds: [],
       favoriteProductIds: []
     });
     return;
   }
 
-  res.json(buildSessionPayload(session.user));
+  syncConfiguredAdminRoleByEmail(session.user.email);
+  const user = sanitizeUser(getUserById(session.user.id) || session.user);
+
+  if (user?.status && user.status !== "active") {
+    db.prepare(`DELETE FROM professional_sessions WHERE token = ?`).run(session.token);
+    clearSessionCookie(res);
+    res.json({
+      authenticated: false,
+      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
+      samplesUsed: 0,
+      samplesRemaining: PROFESSIONAL_SAMPLE_LIMIT,
+      sampleProductIds: [],
+      pendingSampleProductIds: [],
+      favoriteProductIds: []
+    });
+    return;
+  }
+
+  res.json(buildSessionPayload(user));
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -255,14 +450,13 @@ app.post("/api/auth/register", async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, 'active', 'professional')`
     )
     .run(firstName, lastName, phone, email, profession, passwordHash);
+  syncConfiguredAdminRoleByEmail(email);
 
   resetAuthRateLimit(req, email);
 
   res.status(201).json({
     success: true,
-    user: sanitizeUser(
-      db.prepare(`SELECT * FROM professional_users WHERE id = ?`).get(result.lastInsertRowid)
-    )
+    user: sanitizeUser(getUserById(result.lastInsertRowid))
   });
 });
 
@@ -279,7 +473,8 @@ app.post("/api/auth/login", async (req, res) => {
     return;
   }
 
-  const user = db.prepare(`SELECT * FROM professional_users WHERE email = ?`).get(email);
+  syncConfiguredAdminRoleByEmail(email);
+  const user = getUserByEmail(email);
   if (!user) {
     res.status(401).json({ error: "Identifiants invalides." });
     return;
@@ -317,50 +512,6 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/samples/request", requireSession, (req, res) => {
-  const productId = String(req.body?.productId || "").trim();
-  if (!productId) {
-    res.status(400).json({ error: "Produit requis." });
-    return;
-  }
-
-  const userId = req.professionalSession.user.id;
-  const countRow = db.prepare(`SELECT COUNT(*) as count FROM sample_requests WHERE user_id = ?`).get(userId);
-  const samplesUsed = countRow?.count || 0;
-
-  const existing = db.prepare(`SELECT id FROM sample_requests WHERE user_id = ? AND product_id = ?`).get(userId, productId);
-  if (existing) {
-    res.status(409).json({
-      error: "Cet échantillon a déjà été demandé.",
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
-      samplesUsed,
-      samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - samplesUsed)
-    });
-    return;
-  }
-
-  if (samplesUsed >= PROFESSIONAL_SAMPLE_LIMIT) {
-    res.status(409).json({
-      error: "Quota d’échantillons atteint.",
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
-      samplesUsed,
-      samplesRemaining: 0
-    });
-    return;
-  }
-
-  db.prepare(`INSERT INTO sample_requests (user_id, product_id) VALUES (?, ?)`).run(userId, productId);
-  const nextUsed = samplesUsed + 1;
-
-  res.status(201).json({
-    success: true,
-    sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
-    samplesUsed: nextUsed,
-    samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - nextUsed),
-    productId
-  });
-});
-
 app.post("/api/samples/checkout", requireSession, (req, res) => {
   const productIds = Array.isArray(req.body?.productIds)
     ? [...new Set(req.body.productIds.map((item) => String(item || "").trim()).filter(Boolean))]
@@ -372,6 +523,7 @@ app.post("/api/samples/checkout", requireSession, (req, res) => {
   }
 
   const userId = req.professionalSession.user.id;
+  const sampleLimit = getEffectiveSampleLimit(req.professionalSession.user);
   const existingRows = db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ?`).all(userId);
   const existingProductIds = new Set(existingRows.map((row) => row.product_id));
 
@@ -379,19 +531,19 @@ app.post("/api/samples/checkout", requireSession, (req, res) => {
   if (duplicate) {
     res.status(409).json({
       error: "Au moins un échantillon a déjà été demandé.",
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
+      sampleLimit,
       samplesUsed: existingRows.length,
-      samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - existingRows.length)
+      samplesRemaining: Math.max(0, sampleLimit - existingRows.length)
     });
     return;
   }
 
-  if (existingRows.length + productIds.length > PROFESSIONAL_SAMPLE_LIMIT) {
+  if (existingRows.length + productIds.length > sampleLimit) {
     res.status(409).json({
-      error: "Le quota maximum de 10 échantillons serait dépassé.",
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
+      error: `Le quota maximum de ${sampleLimit} échantillon${sampleLimit > 1 ? "s" : ""} serait dépassé.`,
+      sampleLimit,
       samplesUsed: existingRows.length,
-      samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - existingRows.length)
+      samplesRemaining: Math.max(0, sampleLimit - existingRows.length)
     });
     return;
   }
@@ -415,15 +567,40 @@ app.post("/api/samples/checkout", requireSession, (req, res) => {
 
   const orderId = createOrder(productIds);
   const nextUsed = existingRows.length + productIds.length;
+  const nextPendingSampleProductIds = listPendingSampleProductIds(userId).filter((productId) => !productIds.includes(productId));
+  replacePendingSampleProductIds(userId, nextPendingSampleProductIds);
 
   res.status(201).json({
     success: true,
     orderId,
     message: "Odyssée vous contactera par téléphone dès que vos échantillons sont disponibles.",
-    sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
+    sampleLimit,
     samplesUsed: nextUsed,
-    samplesRemaining: Math.max(0, PROFESSIONAL_SAMPLE_LIMIT - nextUsed),
-    sampleProductIds: [...existingProductIds, ...productIds]
+    samplesRemaining: Math.max(0, sampleLimit - nextUsed),
+    sampleProductIds: [...existingProductIds, ...productIds],
+    pendingSampleProductIds: nextPendingSampleProductIds
+  });
+});
+
+app.get("/api/samples/pending", requireSession, (req, res) => {
+  res.json({
+    pendingSampleProductIds: listPendingSampleProductIds(req.professionalSession.user.id)
+  });
+});
+
+app.put("/api/samples/pending", requireSession, (req, res) => {
+  const productIds = Array.isArray(req.body?.productIds)
+    ? req.body.productIds
+    : [];
+
+  const pendingSampleProductIds = replacePendingSampleProductIds(
+    req.professionalSession.user.id,
+    productIds
+  );
+
+  res.json({
+    success: true,
+    pendingSampleProductIds
   });
 });
 
@@ -467,7 +644,7 @@ app.delete("/api/favorites/:productId", requireSession, (req, res) => {
   });
 });
 
-app.get("/api/admin/professionals", (_req, res) => {
+app.get("/api/admin/professionals", requireAdmin, (_req, res) => {
   const rows = db.prepare(`
     SELECT
       u.id,
@@ -476,6 +653,8 @@ app.get("/api/admin/professionals", (_req, res) => {
       u.phone,
       u.email,
       u.profession,
+      u.status,
+      u.sample_limit,
       u.created_at,
       COUNT(sr.id) AS sample_count
     FROM professional_users u
@@ -492,9 +671,138 @@ app.get("/api/admin/professionals", (_req, res) => {
       phone: row.phone,
       email: row.email,
       profession: row.profession,
+      status: row.status || "active",
+      sampleLimit: Number.isFinite(Number(row.sample_limit)) ? Math.max(0, Number(row.sample_limit)) : PROFESSIONAL_SAMPLE_LIMIT,
       createdAt: row.created_at,
       sampleCount: row.sample_count
     }))
+  });
+});
+
+app.patch("/api/admin/professionals/:userId/status", requireAdmin, (req, res) => {
+  const userId = Number(req.params.userId);
+  const status = String(req.body?.status || "").trim().toLowerCase();
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ error: "Compte invalide." });
+    return;
+  }
+
+  if (!["active", "blocked"].includes(status)) {
+    res.status(400).json({ error: "Statut invalide." });
+    return;
+  }
+
+  if (userId === req.professionalSession.user.id && status === "blocked") {
+    res.status(400).json({ error: "Vous ne pouvez pas bloquer votre propre compte administrateur." });
+    return;
+  }
+
+  const existingUser = db.prepare(`SELECT id FROM professional_users WHERE id = ?`).get(userId);
+  if (!existingUser) {
+    res.status(404).json({ error: "Compte introuvable." });
+    return;
+  }
+
+  db.prepare(`UPDATE professional_users SET status = ? WHERE id = ?`).run(status, userId);
+  if (status === "blocked") {
+    db.prepare(`DELETE FROM professional_sessions WHERE user_id = ?`).run(userId);
+  }
+
+  res.json({
+    success: true,
+    userId,
+    status
+  });
+});
+
+app.patch("/api/admin/professionals/:userId/sample-limit", requireAdmin, (req, res) => {
+  const userId = Number(req.params.userId);
+  const sampleLimit = Number(req.body?.sampleLimit);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ error: "Compte invalide." });
+    return;
+  }
+
+  if (!Number.isFinite(sampleLimit) || sampleLimit < 0) {
+    res.status(400).json({ error: "Quota invalide." });
+    return;
+  }
+
+  const normalizedSampleLimit = Math.floor(sampleLimit);
+  const existingUser = db.prepare(`SELECT id FROM professional_users WHERE id = ?`).get(userId);
+  if (!existingUser) {
+    res.status(404).json({ error: "Compte introuvable." });
+    return;
+  }
+
+  db.prepare(`UPDATE professional_users SET sample_limit = ? WHERE id = ?`).run(normalizedSampleLimit, userId);
+
+  res.json({
+    success: true,
+    userId,
+    sampleLimit: normalizedSampleLimit
+  });
+});
+
+app.get("/api/admin/sample-orders", requireAdmin, (_req, res) => {
+  res.json({
+    sampleOrders: listSampleOrders()
+  });
+});
+
+app.patch("/api/admin/sample-orders/:orderId", requireAdmin, (req, res) => {
+  const orderId = Number(req.params.orderId);
+  const statusValue = req.body?.status;
+  const adminNotesValue = req.body?.adminNotes;
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    res.status(400).json({ error: "Commande invalide." });
+    return;
+  }
+
+  const existingOrder = db.prepare(`SELECT id FROM sample_orders WHERE id = ?`).get(orderId);
+  if (!existingOrder) {
+    res.status(404).json({ error: "Commande introuvable." });
+    return;
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (statusValue !== undefined) {
+    const normalizedStatus = String(statusValue || "").trim().toLowerCase();
+    if (!SAMPLE_ORDER_STATUSES.has(normalizedStatus)) {
+      res.status(400).json({ error: "Statut invalide." });
+      return;
+    }
+    updates.push("status = ?");
+    params.push(normalizedStatus);
+  }
+
+  if (adminNotesValue !== undefined) {
+    updates.push("admin_notes = ?");
+    params.push(String(adminNotesValue || "").trim());
+  }
+
+  if (!updates.length) {
+    res.status(400).json({ error: "Aucune mise à jour reçue." });
+    return;
+  }
+
+  params.push(orderId);
+  db.prepare(`UPDATE sample_orders SET ${updates.join(", ")} WHERE id = ?`).run(...params);
+
+  const updatedOrder = db
+    .prepare(`SELECT status, admin_notes FROM sample_orders WHERE id = ?`)
+    .get(orderId);
+
+  res.json({
+    success: true,
+    orderId,
+    status: updatedOrder?.status || "pending",
+    adminNotes: updatedOrder?.admin_notes || ""
   });
 });
 

@@ -447,3 +447,16 @@ export function getProductCatalogItemForPath(pathname) {
 export function getProductCatalogItemById(productId) {
   return productById.get(productId) || null;
 }
+
+export function getProductColorwayById(product, colorwayId) {
+  if (!product || !Array.isArray(product.colorways) || !product.colorways.length) {
+    return null;
+  }
+
+  const normalizedColorwayId = typeof colorwayId === "string" ? colorwayId.trim() : "";
+  if (!normalizedColorwayId) {
+    return product.colorways[0] || null;
+  }
+
+  return product.colorways.find((colorway) => colorway.id === normalizedColorwayId) || product.colorways[0] || null;
+}

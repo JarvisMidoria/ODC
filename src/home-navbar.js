@@ -2,6 +2,7 @@ import {
   getProductCatalogItemById,
   getProductCatalogItemForPath,
   getProductCatalogItemsForPath,
+  getProductColorwayById,
   productCatalogItems,
   productCollections
 } from "./product-catalog-data.js";
@@ -25,9 +26,15 @@ import {
 } from "./sample-cart-store.js";
 import {
   FAVORITES_CHANGE_EVENT,
+  getFavoriteProductIds,
   hasFavoriteProduct,
   toggleFavoriteProduct
 } from "./favorites-store.js";
+import {
+  buildProductSelectionKey,
+  parseProductSelectionKey,
+  selectionKeysMatch
+} from "./product-selection.js";
 import { loadSiteContent } from "./site-content.js";
 import {
   PROFESSIONAL_AUTH_EVENT,
@@ -263,6 +270,15 @@ function sampleCartIconMarkup() {
   `;
 }
 
+function favoriteNavIconMarkup() {
+  return `
+    <span class="odc-home-favorite-link__icon" aria-hidden="true">
+      ${favoriteIconMarkup(false)}
+    </span>
+    <span class="odc-home-favorite-link__count" data-odc-favorite-count>0</span>
+  `;
+}
+
 function professionalIconMarkup() {
   return `
     <span class="odc-home-user-icon" aria-hidden="true">
@@ -343,6 +359,9 @@ if (root) {
           <a class="odc-home-sample-cart odc-home-sample-cart--mobile" href="/echantillons.html" data-odc-sample-cart-link hidden>
             ${sampleCartIconMarkup()}
           </a>
+          <a class="odc-home-favorite-link odc-home-favorite-link--mobile" href="/favoris.html" aria-label="Favoris">
+            ${favoriteNavIconMarkup()}
+          </a>
           <button class="odc-home-pro odc-home-pro--mobile" type="button" data-professional-open aria-label="Professionnel">
             ${professionalIconMarkup()}
           </button>
@@ -358,6 +377,9 @@ if (root) {
             ${navMarkup()}
           </nav>
           <div class="odc-home-header__actions">
+            <a class="odc-home-favorite-link" href="/favoris.html" aria-label="Favoris">
+              ${favoriteNavIconMarkup()}
+            </a>
             <a class="odc-home-sample-cart" href="/echantillons.html" data-odc-sample-cart-link hidden>
               ${sampleCartIconMarkup()}
             </a>
@@ -1583,6 +1605,14 @@ function isSampleCheckoutPath(pathname = window.location.pathname) {
   ].includes(pathname);
 }
 
+function isFavoritesPath(pathname = window.location.pathname) {
+  return [
+    "/favoris",
+    "/favoris/",
+    "/favoris.html"
+  ].includes(pathname);
+}
+
 function getProductActivePrice(product, colorway = null) {
   const resolvedColorway = colorway || getProductActiveColorway(product, 0);
   return resolvedColorway?.salePrice || resolvedColorway?.price || product?.salePrice || product?.price || null;
@@ -1622,6 +1652,19 @@ function updateSampleCartIndicators() {
   });
 
   document.querySelectorAll("[data-odc-sample-cart-count]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) {
+      return;
+    }
+
+    node.textContent = String(count);
+    node.hidden = count <= 0;
+  });
+}
+
+function updateFavoriteIndicators() {
+  const count = getFavoriteProductIds().length;
+
+  document.querySelectorAll("[data-odc-favorite-count]").forEach((node) => {
     if (!(node instanceof HTMLElement)) {
       return;
     }
@@ -1700,14 +1743,14 @@ function buildLocalCartMarkup() {
           ${lines
             .map((line) => `
               <article class="odc-cart-item" data-odc-cart-line="${line.key}">
-                <a class="odc-cart-item__media" href="${line.product.fullUrl}">
+                <a class="odc-cart-item__media" href="${getProductDetailHref(line.product)}">
                   <img src="${line.product.mainImage?.assetUrl || line.product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(line.product.title)}" />
                 </a>
                 <div class="odc-cart-item__meta">
                   <div class="odc-cart-item__top">
                     <div>
                       <p class="odc-cart-item__eyebrow">${line.product.onSale ? "Promotion" : "Collection"}</p>
-                      <a class="odc-cart-item__title" href="${line.product.fullUrl}">${escapeHtml(line.product.title)}</a>
+                      <a class="odc-cart-item__title" href="${getProductDetailHref(line.product)}">${escapeHtml(line.product.title)}</a>
                     </div>
                     <button class="odc-cart-item__remove" type="button" data-odc-cart-remove="${line.key}">Supprimer</button>
                   </div>
@@ -1835,10 +1878,10 @@ function buildSampleCheckoutMarkup(statusMessage = "") {
   const professionalState = getProfessionalState();
   const pendingProductIds = getSampleCartProductIds();
   const pendingLines = pendingProductIds
-    .map((productId) => getProductCatalogItemById(productId))
+    .map((selectionKey) => resolveProductSelection(selectionKey))
     .filter(Boolean);
   const requestedLines = (professionalState.sampleProductIds || [])
-    .map((productId) => getProductCatalogItemById(productId))
+    .map((selectionKey) => resolveProductSelection(selectionKey))
     .filter(Boolean);
   const hasRequested = requestedLines.length > 0;
   const hasPending = pendingLines.length > 0;
@@ -1888,20 +1931,20 @@ function buildSampleCheckoutMarkup(statusMessage = "") {
                 <p class="odc-cart-page__eyebrow">À valider</p>
                 <strong>${pendingLines.length}</strong>
               </div>
-              ${pendingLines.map((product) => `
-                <article class="odc-cart-item" data-odc-sample-line="${product.id}">
-                  <a class="odc-cart-item__media" href="${product.fullUrl}">
-                    <img src="${product.mainImage?.assetUrl || product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(product.title)}" />
+              ${pendingLines.map((selection) => `
+                <article class="odc-cart-item" data-odc-sample-line="${selection.selectionKey}">
+                  <a class="odc-cart-item__media" href="${getProductDetailHref(selection.product, selection.colorway)}">
+                    <img src="${selection.colorway?.mainImage?.assetUrl || selection.product.mainImage?.assetUrl || selection.product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(selection.product.title)}" />
                   </a>
                   <div class="odc-cart-item__meta">
                     <div class="odc-cart-item__top">
                       <div>
                         <p class="odc-cart-item__eyebrow">Échantillon en attente</p>
-                        <a class="odc-cart-item__title" href="${product.fullUrl}">${escapeHtml(product.title)}</a>
+                        <a class="odc-cart-item__title" href="${getProductDetailHref(selection.product, selection.colorway)}">${escapeHtml(selection.product.title)}</a>
                       </div>
-                      <button class="odc-cart-item__remove" type="button" data-odc-sample-remove="${product.id}">Supprimer</button>
+                      <button class="odc-cart-item__remove" type="button" data-odc-sample-remove="${selection.selectionKey}">Supprimer</button>
                     </div>
-                    <div class="odc-cart-item__note">1 échantillon par référence.</div>
+                    <div class="odc-cart-item__note">Coloris : ${escapeHtml(selection.colorway?.label || "Par défaut")}</div>
                   </div>
                 </article>
               `).join("")}
@@ -1913,20 +1956,20 @@ function buildSampleCheckoutMarkup(statusMessage = "") {
                 <p class="odc-cart-page__eyebrow">Déjà demandés</p>
                 <strong>${requestedLines.length}</strong>
               </div>
-              ${requestedLines.map((product) => `
+              ${requestedLines.map((selection) => `
                 <article class="odc-cart-item odc-cart-item--locked">
-                  <a class="odc-cart-item__media" href="${product.fullUrl}">
-                    <img src="${product.mainImage?.assetUrl || product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(product.title)}" />
+                  <a class="odc-cart-item__media" href="${getProductDetailHref(selection.product, selection.colorway)}">
+                    <img src="${selection.colorway?.mainImage?.assetUrl || selection.product.mainImage?.assetUrl || selection.product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(selection.product.title)}" />
                   </a>
                   <div class="odc-cart-item__meta">
                     <div class="odc-cart-item__top">
                       <div>
                         <p class="odc-cart-item__eyebrow">Échantillon demandé</p>
-                        <a class="odc-cart-item__title" href="${product.fullUrl}">${escapeHtml(product.title)}</a>
+                        <a class="odc-cart-item__title" href="${getProductDetailHref(selection.product, selection.colorway)}">${escapeHtml(selection.product.title)}</a>
                       </div>
                       <span class="odc-cart-item__status">Confirmé</span>
                     </div>
-                    <div class="odc-cart-item__note">Cette référence a déjà été envoyée à l’équipe Odyssée.</div>
+                    <div class="odc-cart-item__note">Coloris : ${escapeHtml(selection.colorway?.label || "Par défaut")}</div>
                   </div>
                 </article>
               `).join("")}
@@ -1952,6 +1995,72 @@ function buildSampleCheckoutMarkup(statusMessage = "") {
             <button class="odc-cart-button odc-cart-button--primary" type="button" data-odc-sample-checkout ${hasPending ? "" : "disabled"}>Valider ma demande</button>
             <a class="odc-cart-button" href="/produits">Continuer la sélection</a>
             <button class="odc-cart-button odc-cart-button--ghost" type="button" data-odc-sample-clear ${hasPending ? "" : "disabled"}>Vider la sélection</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  `;
+}
+
+function buildFavoritesMarkup() {
+  const favoriteSelections = getFavoriteProductIds()
+    .map((selectionKey) => resolveProductSelection(selectionKey))
+    .filter(Boolean);
+  const totalVisible = favoriteSelections.length;
+
+  if (!totalVisible) {
+    return `
+      <section class="odc-cart-page">
+        <header class="odc-cart-page__header">
+          <p class="odc-cart-page__eyebrow">Favoris</p>
+          <h1 class="odc-cart-page__title">Aucun favori enregistré</h1>
+          <p class="odc-cart-page__intro">Ajoutez des coloris depuis la modale produit pour les retrouver ici.</p>
+        </header>
+        <div class="odc-cart-empty">
+          <a class="odc-cart-button odc-cart-button--primary" href="/produits">Voir les produits</a>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="odc-cart-page">
+      <header class="odc-cart-page__header">
+        <p class="odc-cart-page__eyebrow">Favoris</p>
+        <h1 class="odc-cart-page__title">Vos favoris</h1>
+        <p class="odc-cart-page__intro">${totalVisible} coloris favori${totalVisible > 1 ? "s" : ""} enregistré${totalVisible > 1 ? "s" : ""}.</p>
+      </header>
+      <div class="odc-cart-layout">
+        <div class="odc-cart-items">
+          ${favoriteSelections.map((selection) => `
+            <article class="odc-cart-item" data-odc-favorite-line="${selection.selectionKey}">
+              <a class="odc-cart-item__media" href="${getProductDetailHref(selection.product, selection.colorway)}">
+                <img src="${selection.colorway?.mainImage?.assetUrl || selection.product.mainImage?.assetUrl || selection.product.images?.[0]?.assetUrl || ""}" alt="${escapeHtml(selection.product.title)}" />
+              </a>
+              <div class="odc-cart-item__meta">
+                <div class="odc-cart-item__top">
+                  <div>
+                    <p class="odc-cart-item__eyebrow">Favori</p>
+                    <a class="odc-cart-item__title" href="${getProductDetailHref(selection.product, selection.colorway)}">${escapeHtml(selection.product.title)}</a>
+                  </div>
+                  <button class="odc-cart-item__remove odc-cart-item__remove--icon" type="button" aria-label="Retirer des favoris" data-odc-favorite-remove="${selection.selectionKey}">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="odc-cart-item__note">Coloris : ${escapeHtml(selection.colorway?.label || "Par défaut")}</div>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <aside class="odc-cart-summary">
+          <p class="odc-cart-summary__eyebrow">Résumé</p>
+          <div class="odc-cart-summary__row">
+            <span>Coloris favoris</span>
+            <strong>${totalVisible}</strong>
+          </div>
+          <p class="odc-cart-summary__note">Vos favoris sont enregistrés par coloris. Ouvrez une fiche produit pour demander un échantillon de la référence exacte.</p>
+          <div class="odc-cart-summary__actions">
+            <a class="odc-cart-button odc-cart-button--primary" href="/produits">Continuer la sélection</a>
           </div>
         </aside>
       </div>
@@ -1990,8 +2099,8 @@ function enableSampleCheckoutPage() {
     const removeButton = target.closest("[data-odc-sample-remove]");
     if (removeButton) {
       event.preventDefault();
-      const productId = removeButton.getAttribute("data-odc-sample-remove") || "";
-      removeSampleCartProduct(productId);
+      const selectionKey = removeButton.getAttribute("data-odc-sample-remove") || "";
+      removeSampleCartProduct(selectionKey);
       statusMessage = "";
       render();
       return;
@@ -2026,8 +2135,55 @@ function enableSampleCheckoutPage() {
   window.addEventListener(PROFESSIONAL_AUTH_EVENT, render);
 }
 
+function enableFavoritesPage() {
+  if (!isFavoritesPath()) {
+    return;
+  }
+
+  const root = document.querySelector("#odc-favorites-root");
+  if (!root || root.dataset.odcFavoritesPageReady === "true") {
+    return;
+  }
+
+  root.dataset.odcFavoritesPageReady = "true";
+  document.title = "Favoris — Odyssée";
+
+  const render = () => {
+    root.innerHTML = buildFavoritesMarkup();
+    updateFavoriteIndicators();
+  };
+
+  render();
+
+  root.addEventListener("click", async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+      return;
+    }
+
+    const removeButton = target.closest("[data-odc-favorite-remove]");
+    if (!removeButton) {
+      return;
+    }
+
+    event.preventDefault();
+    const selectionKey = removeButton.getAttribute("data-odc-favorite-remove") || "";
+
+    try {
+      await toggleFavoriteProduct(selectionKey);
+      render();
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  window.addEventListener(FAVORITES_CHANGE_EVENT, render);
+  window.addEventListener(PROFESSIONAL_AUTH_EVENT, render);
+}
+
 window.addEventListener(CART_CHANGE_EVENT, updateCartIndicators);
 window.addEventListener(SAMPLE_CART_CHANGE_EVENT, updateSampleCartIndicators);
+window.addEventListener(FAVORITES_CHANGE_EVENT, updateFavoriteIndicators);
 
 function getDecodedProductDescription(product, fallback = false) {
   const normalized = product?.description ? decodeHtmlEntities(product.description).trim() : "";
@@ -2053,6 +2209,48 @@ function getProductActiveColorway(product, colorwayIndex = 0) {
 
   const safeIndex = Math.max(0, Math.min(colorwayIndex, colorways.length - 1));
   return colorways[safeIndex] || colorways[0] || null;
+}
+
+function getProductSelectionKey(product, colorway = null) {
+  return buildProductSelectionKey(product?.id, colorway?.id || "");
+}
+
+function getProductDetailHref(product, colorway = null) {
+  const productId = typeof product?.id === "string" ? product.id.trim() : "";
+  if (!productId) {
+    return "/produits";
+  }
+
+  const params = new URLSearchParams({ product: productId });
+  if (colorway?.id) {
+    params.set("colorway", colorway.id);
+  }
+
+  return `/product.html?${params.toString()}`;
+}
+
+function hasMatchingProductSelection(selectionKeys, selectionKey) {
+  return (selectionKeys || []).some((storedKey) => selectionKeysMatch(storedKey, selectionKey));
+}
+
+function resolveProductSelection(selectionKey) {
+  const { productId, colorwayId, selectionKey: normalizedSelectionKey } = parseProductSelectionKey(selectionKey);
+  const product = getProductCatalogItemById(productId);
+
+  if (!product) {
+    return null;
+  }
+
+  const colorway = getProductColorwayById(product, colorwayId);
+  const resolvedSelectionKey = getProductSelectionKey(product, colorway);
+
+  return {
+    selectionKey: resolvedSelectionKey || normalizedSelectionKey,
+    productId: product.id,
+    colorwayId: colorway?.id || "",
+    product,
+    colorway
+  };
 }
 
 function getProductImages(product, colorway = null) {
@@ -2132,6 +2330,9 @@ function buildProductDiscoveryOverlay() {
   overlay.innerHTML = `
     <div class="odc-product-discovery__backdrop" data-odc-close></div>
     <div class="odc-product-discovery__shell" role="dialog" aria-modal="true" aria-label="Aperçu du produit">
+      <button class="odc-product-discovery__favorite" type="button" aria-label="Ajouter aux favoris" aria-pressed="false" data-odc-favorite-request>
+        ${favoriteIconMarkup(false)}
+      </button>
       <button class="odc-product-discovery__close" type="button" aria-label="Fermer" data-odc-close></button>
       <button class="odc-product-discovery__edge odc-product-discovery__edge--prev" type="button" aria-label="Produit précédent" data-odc-product-nav="prev"></button>
       <button class="odc-product-discovery__edge odc-product-discovery__edge--next" type="button" aria-label="Produit suivant" data-odc-product-nav="next"></button>
@@ -2177,6 +2378,11 @@ function getProductPrimaryImage(product) {
 function getProductHoverImage(product) {
   const colorway = getProductActiveColorway(product, 0);
   return getProductImages(product, colorway)?.[1]?.assetUrl || getProductPrimaryImage(product);
+}
+
+function getProductPriceLabelForColorway(product, colorway = null) {
+  const activePrice = getProductActivePrice(product, colorway);
+  return activePrice ? formatMoney(activePrice) : "Prix sur demande";
 }
 
 function slugifyFilterKey(value) {
@@ -2338,6 +2544,15 @@ function getFilteredProductItems(items, selectedType, selectedSubtype = "") {
   return byType.filter((item) => slugifyFilterKey(getProductSubtypeLabel(item)) === selectedSubtype);
 }
 
+function getDisplayCountForProduct(product) {
+  const colorways = getProductColorways(product);
+  return colorways.length || 1;
+}
+
+function getDisplayCountForProducts(products) {
+  return products.reduce((total, product) => total + getDisplayCountForProduct(product), 0);
+}
+
 function buildProductTypeFilterMarkup(state) {
   const counts = new Map();
   state.items.forEach((item) => {
@@ -2345,14 +2560,16 @@ function buildProductTypeFilterMarkup(state) {
     if (!key) {
       return;
     }
-    counts.set(key, (counts.get(key) || 0) + 1);
+    counts.set(key, (counts.get(key) || 0) + getDisplayCountForProduct(item));
   });
+  const totalVisible = getDisplayCountForProducts(state.filteredItems);
+  const totalItems = getDisplayCountForProducts(state.items);
 
   return `
     <section class="odc-product-brand-filter" aria-label="Filtrer par type de produit">
       <div class="odc-product-brand-filter__header">
         <p class="odc-product-brand-filter__eyebrow">Types de produit</p>
-        <p class="odc-product-brand-filter__summary">${state.filteredItems.length} produit${state.filteredItems.length > 1 ? "s" : ""}</p>
+        <p class="odc-product-brand-filter__summary">${totalVisible} produit${totalVisible > 1 ? "s" : ""}</p>
       </div>
       <div class="odc-product-brand-filter__list" role="list">
         <button
@@ -2362,7 +2579,7 @@ function buildProductTypeFilterMarkup(state) {
           aria-pressed="${state.selectedType ? "false" : "true"}"
         >
           <span>Tous les types</span>
-          <small>${state.items.length}</small>
+          <small>${totalItems}</small>
         </button>
         ${state.availableTypes
           .map((type) => {
@@ -2396,7 +2613,7 @@ function buildProductTypeFilterMarkup(state) {
                   aria-pressed="${state.selectedSubtype ? "false" : "true"}"
                 >
                   <span>Tous les sous-types</span>
-                  <small>${state.itemsByType.length}</small>
+                  <small>${getDisplayCountForProducts(state.itemsByType)}</small>
                 </button>
                 ${state.availableSubtypes
                   .map((subtype) => {
@@ -2436,40 +2653,41 @@ function renderCustomProductGrid(state) {
     <div class="odc-product-grid">
       ${state.filteredItems.length
         ? state.filteredItems
-        .map((product) => {
-          const primary = getProductPrimaryImage(product);
-          const hover = getProductHoverImage(product);
-          const sourceIndex = state.items.findIndex((item) => item.id === product.id);
-          const isFavorite = hasFavoriteProduct(product.id);
-          return `
-            <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""}" data-product-index="${sourceIndex}">
-              <button
-                class="odc-product-card__favorite ${isFavorite ? "is-active" : ""}"
-                type="button"
-                aria-label="${isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}"
-                aria-pressed="${isFavorite ? "true" : "false"}"
-                data-odc-favorite-toggle="${product.id}"
-              >
-                ${favoriteIconMarkup(isFavorite)}
-              </button>
-              <button class="odc-product-card__quick-view" type="button" data-product-index="${sourceIndex}">
-                Quick View
-              </button>
-              <button class="odc-product-card__open" type="button" aria-label="Voir ${product.title}" data-product-index="${sourceIndex}">
-                <div class="odc-product-card__media">
-                  <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" alt="${product.title}" loading="lazy" decoding="async" />
-                  <img class="odc-product-card__image odc-product-card__image--hover" src="${hover}" alt="" loading="lazy" decoding="async" />
-                </div>
-                <div class="odc-product-card__meta">
-                  <div class="odc-product-card__title">${product.title}</div>
-                  <div class="odc-product-card__price">${getProductPriceLabel(product)}</div>
-                  <div class="odc-product-card__status">${product.onSale ? "Sale" : ""}</div>
-                </div>
-              </button>
-            </article>
-          `;
-        })
-        .join("")
+          .flatMap((product) => {
+            const colorways = getProductColorways(product);
+            const sourceIndex = state.items.findIndex((item) => item.id === product.id);
+            const entries = colorways.length ? colorways : [null];
+
+            return entries.map((colorway, colorwayIndex) => {
+              const primary = getProductMainImage(product, colorway)?.assetUrl || "";
+              const hover = getProductImages(product, colorway)?.[1]?.assetUrl || primary;
+              const title = colorway?.label ? `${product.title} - ${colorway.label}` : product.title;
+              return `
+                <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                  <button class="odc-product-card__quick-view" type="button" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                    Quick View
+                  </button>
+                  <button class="odc-product-card__open" type="button" aria-label="Voir ${title}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                    <div class="odc-product-card__media">
+                      <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" />
+                      <img class="odc-product-card__image odc-product-card__image--hover" src="${hover}" alt="" loading="lazy" decoding="async" />
+                    </div>
+                    <div class="odc-product-card__meta">
+                      <div class="odc-product-card__copy">
+                        <div class="odc-product-card__title">${escapeHtml(product.title)}</div>
+                        <div class="odc-product-card__subtitle">${escapeHtml(colorway?.label || "Coloris unique")}</div>
+                      </div>
+                      <div class="odc-product-card__aside">
+                        <div class="odc-product-card__price">${getProductPriceLabelForColorway(product, colorway)}</div>
+                        <div class="odc-product-card__status">${escapeHtml(colorway?.sku || (product.onSale ? "Sale" : ""))}</div>
+                      </div>
+                    </div>
+                  </button>
+                </article>
+              `;
+            });
+          })
+          .join("")
         : `
           <div class="odc-product-grid__empty">
             <p>Aucun produit ne correspond a ce type pour le moment.</p>
@@ -2495,31 +2713,6 @@ function bindProductGridFavoriteInteractions(state) {
   if (state.root.dataset.odcFavoriteClickBound === "true") {
     return;
   }
-
-  state.root.dataset.odcFavoriteClickBound = "true";
-  state.root.addEventListener("click", async (event) => {
-    const favoriteButton = event.target instanceof Element
-      ? event.target.closest("[data-odc-favorite-toggle]")
-      : null;
-
-    if (!(favoriteButton instanceof HTMLButtonElement)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const productId = favoriteButton.getAttribute("data-odc-favorite-toggle") || "";
-    favoriteButton.disabled = true;
-
-    try {
-      await toggleFavoriteProduct(productId);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      favoriteButton.disabled = false;
-    }
-  });
 }
 
 function enableProductTypeFilter(state) {
@@ -2553,7 +2746,7 @@ function enableProductTypeFilter(state) {
       if (!key) {
         return;
       }
-      state.itemsBySubtype.set(key, (state.itemsBySubtype.get(key) || 0) + 1);
+      state.itemsBySubtype.set(key, (state.itemsBySubtype.get(key) || 0) + getDisplayCountForProduct(item));
     });
     if (state.selectedType !== "tissu") {
       state.selectedSubtype = "";
@@ -2707,6 +2900,32 @@ function renderProductDiscoveryImage(state, overlay, product) {
     });
 }
 
+function syncProductDiscoveryColorwayViewport(state, overlay) {
+  const strip = overlay.querySelector("[data-odc-colorways-strip]");
+
+  if (!(strip instanceof HTMLElement)) {
+    return;
+  }
+
+  const targetIndex = Math.max(
+    0,
+    state.currentColorwayPage * PRODUCT_COLORWAYS_PER_PAGE,
+    state.currentColorwayIndex
+  );
+  const target =
+    strip.querySelector(`[data-odc-colorway-index="${targetIndex}"]`) ||
+    strip.querySelector(`[data-odc-colorway-index="${state.currentColorwayIndex}"]`);
+
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  strip.scrollTo({
+    left: Math.max(0, target.offsetLeft - strip.offsetLeft),
+    behavior: "auto"
+  });
+}
+
 function renderProductDiscovery(state, overlay) {
   const product = state.items[state.currentIndex];
   const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
@@ -2723,8 +2942,10 @@ function renderProductDiscovery(state, overlay) {
   const eyebrow = overlay.querySelector(".odc-product-discovery__eyebrow");
   const priceNode = overlay.querySelector(".odc-product-discovery__price");
   const sampleButton = overlay.querySelector("[data-odc-sample-request]");
+  const favoriteButton = overlay.querySelector("[data-odc-favorite-request]");
   const sampleCounter = overlay.querySelector("[data-odc-sample-counter]");
   const professionalState = getProfessionalState();
+  const activeSelectionKey = getProductSelectionKey(product, colorway);
 
   if (title) {
     title.textContent = product.title || "";
@@ -2735,17 +2956,14 @@ function renderProductDiscovery(state, overlay) {
     const totalPages = Math.max(1, Math.ceil(colorways.length / PRODUCT_COLORWAYS_PER_PAGE));
     const currentPage = Math.max(0, Math.min(state.currentColorwayPage, totalPages - 1));
     state.currentColorwayPage = currentPage;
-    const start = currentPage * PRODUCT_COLORWAYS_PER_PAGE;
-    const visibleColorways = colorways.slice(start, start + PRODUCT_COLORWAYS_PER_PAGE);
     colorwaysNode.innerHTML = colorways.length
       ? `
           <div class="odc-product-colorways__group">
             <p class="odc-product-colorways__label">Coloris disponibles</p>
-            <div class="odc-product-colorways">
-            ${visibleColorways
+            <div class="odc-product-colorways" data-odc-colorways-strip>
+            ${colorways
               .map(
-                (item, visibleIndex) => {
-                  const index = start + visibleIndex;
+                (item, index) => {
                   return `
                   <button
                     class="odc-product-colorways__button ${index === state.currentColorwayIndex ? "is-active" : ""}"
@@ -2774,6 +2992,8 @@ function renderProductDiscovery(state, overlay) {
           </div>
         `
       : "";
+
+    syncProductDiscoveryColorwayViewport(state, overlay);
   }
 
   if (description) {
@@ -2781,9 +3001,7 @@ function renderProductDiscovery(state, overlay) {
   }
 
   if (link) {
-    const resolvedUrl = product.fullUrl
-      ? new URL(product.fullUrl, window.location.origin).toString()
-      : "#";
+    const resolvedUrl = new URL(getProductDetailHref(product, colorway), window.location.origin).toString();
     link.dataset.odcTargetHref = resolvedUrl;
   }
 
@@ -2810,16 +3028,23 @@ function renderProductDiscovery(state, overlay) {
   }
 
   if (sampleButton instanceof HTMLButtonElement) {
-    const alreadyRequested = professionalState.sampleProductIds.includes(product.id);
-    const inSampleCart = hasSampleCartProduct(product.id);
+    const alreadyRequested = hasMatchingProductSelection(professionalState.sampleProductIds, activeSelectionKey);
+    const inSampleCart = hasSampleCartProduct(activeSelectionKey);
     const wouldExceedLimit = !inSampleCart && professionalState.samplesRemaining <= getSampleCartCount();
     sampleButton.hidden = !professionalState.authenticated;
     sampleButton.disabled = alreadyRequested || inSampleCart || wouldExceedLimit;
     sampleButton.textContent = alreadyRequested
-      ? "Échantillon demandé"
-      : inSampleCart
-        ? "Dans votre panier"
-        : "Demander échantillon";
+        ? "Échantillon demandé"
+        : inSampleCart
+          ? "Dans votre panier"
+          : "Demander échantillon";
+  }
+
+  if (favoriteButton instanceof HTMLButtonElement) {
+    const isFavorite = hasFavoriteProduct(activeSelectionKey);
+    favoriteButton.innerHTML = favoriteIconMarkup(isFavorite);
+    favoriteButton.setAttribute("aria-label", isFavorite ? "Retirer des favoris" : "Ajouter aux favoris");
+    favoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
   }
 
   if (sampleCounter instanceof HTMLElement) {
@@ -2934,14 +3159,14 @@ function closeProductDiscovery(state, overlay) {
   state.isAnimating = false;
 }
 
-function openProductDiscovery(state, overlay, index, trigger) {
+function openProductDiscovery(state, overlay, index, trigger, colorwayIndex = 0) {
   if (index < 0 || index >= state.items.length) {
     return;
   }
 
   state.currentIndex = index;
-  state.currentColorwayIndex = 0;
-  state.currentColorwayPage = 0;
+  state.currentColorwayIndex = Math.max(0, colorwayIndex);
+  state.currentColorwayPage = Math.floor(Math.max(0, colorwayIndex) / PRODUCT_COLORWAYS_PER_PAGE);
   state.currentImageIndex = 0;
   state.activeTrigger = trigger || null;
 
@@ -2981,6 +3206,34 @@ async function enableProductDiscoveryOverlay() {
     startY: 0,
     active: false
   };
+  const setProductDiscoveryZoom = (imageWrap, clientX, clientY) => {
+    if (!(imageWrap instanceof HTMLElement)) {
+      return;
+    }
+
+    const rect = imageWrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return;
+    }
+
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+
+    imageWrap.style.setProperty("--odc-zoom-x", `${Math.max(0, Math.min(100, x))}%`);
+    imageWrap.style.setProperty("--odc-zoom-y", `${Math.max(0, Math.min(100, y))}%`);
+    imageWrap.classList.add("is-zoomed");
+    imageWrap.querySelector(".odc-product-discovery__image")?.style.setProperty("transform", "scale(3.2)");
+  };
+  const resetProductDiscoveryZoom = (imageWrap) => {
+    if (!(imageWrap instanceof HTMLElement)) {
+      return;
+    }
+
+    imageWrap.classList.remove("is-zoomed");
+    imageWrap.style.setProperty("--odc-zoom-x", "50%");
+    imageWrap.style.setProperty("--odc-zoom-y", "50%");
+    imageWrap.querySelector(".odc-product-discovery__image")?.style.removeProperty("transform");
+  };
   enableProductTypeFilter(state);
 
   const openFromElement = (element) => {
@@ -2988,13 +3241,18 @@ async function enableProductDiscoveryOverlay() {
     const indexValue =
       element?.getAttribute("data-product-index") ||
       card?.getAttribute("data-product-index");
+    const colorwayIndexValue =
+      element?.getAttribute("data-colorway-index") ||
+      card?.getAttribute("data-colorway-index") ||
+      "0";
     const index = Number.parseInt(indexValue || "", 10);
+    const colorwayIndex = Number.parseInt(colorwayIndexValue || "0", 10);
 
     if (!Number.isInteger(index) || index < 0 || index >= state.items.length) {
       return;
     }
 
-    openProductDiscovery(state, overlay, index, element);
+    openProductDiscovery(state, overlay, index, element, Number.isInteger(colorwayIndex) ? colorwayIndex : 0);
   };
 
   state.root.addEventListener("click", (event) => {
@@ -3021,34 +3279,21 @@ async function enableProductDiscoveryOverlay() {
     const target = event.target instanceof Element ? event.target : null;
     const imageWrap = target?.closest(".odc-product-discovery__image-wrap");
 
-    if (!(imageWrap instanceof HTMLElement)) {
+    if (!(imageWrap instanceof HTMLElement) || window.matchMedia("(hover: none)").matches) {
       return;
     }
-
-    const rect = imageWrap.getBoundingClientRect();
-    if (!rect.width || !rect.height) {
-      return;
-    }
-
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-
-    imageWrap.style.setProperty("--odc-zoom-x", `${Math.max(0, Math.min(100, x))}%`);
-    imageWrap.style.setProperty("--odc-zoom-y", `${Math.max(0, Math.min(100, y))}%`);
-    imageWrap.classList.add("is-zoomed");
+    setProductDiscoveryZoom(imageWrap, event.clientX, event.clientY);
   });
 
   overlay.addEventListener("mouseleave", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     const imageWrap = target?.closest(".odc-product-discovery__image-wrap");
 
-    if (!(imageWrap instanceof HTMLElement)) {
+    if (!(imageWrap instanceof HTMLElement) || window.matchMedia("(hover: none)").matches) {
       return;
     }
 
-    imageWrap.classList.remove("is-zoomed");
-    imageWrap.style.setProperty("--odc-zoom-x", "50%");
-    imageWrap.style.setProperty("--odc-zoom-y", "50%");
+    resetProductDiscoveryZoom(imageWrap);
   }, true);
 
   overlay.addEventListener("click", (event) => {
@@ -3094,10 +3339,28 @@ async function enableProductDiscoveryOverlay() {
       return;
     }
 
+    const favoriteRequest = target.closest("[data-odc-favorite-request]");
+    if (favoriteRequest && overlay.classList.contains("is-open")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const product = state.items[state.currentIndex];
+      const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
+      const selectionKey = getProductSelectionKey(product, colorway);
+
+      if (selectionKey) {
+        toggleFavoriteProduct(selectionKey)
+          .then(() => renderProductDiscovery(state, overlay))
+          .catch((error) => console.error(error));
+      }
+      return;
+    }
+
     const sampleRequest = target.closest("[data-odc-sample-request]");
     if (sampleRequest && overlay.classList.contains("is-open")) {
       event.preventDefault();
-      addSampleCartProduct(state.items[state.currentIndex].id);
+      const product = state.items[state.currentIndex];
+      const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
+      addSampleCartProduct(getProductSelectionKey(product, colorway));
       renderProductDiscovery(state, overlay);
       return;
     }
@@ -3117,6 +3380,7 @@ async function enableProductDiscoveryOverlay() {
       const index = Number(colorwayButton.getAttribute("data-odc-colorway-index"));
       if (Number.isInteger(index)) {
         state.currentColorwayIndex = index;
+        state.currentColorwayPage = Math.floor(index / PRODUCT_COLORWAYS_PER_PAGE);
         state.currentImageIndex = 0;
         renderProductDiscovery(state, overlay);
       }
@@ -3216,6 +3480,17 @@ async function enableProductDiscoveryOverlay() {
 
       const deltaX = touch.clientX - imageSwipe.startX;
       const deltaY = touch.clientY - imageSwipe.startY;
+      const imageWrap = event.target instanceof Element ? event.target.closest(".odc-product-discovery__image-wrap") : null;
+
+      if (imageWrap instanceof HTMLElement && Math.abs(deltaX) < PRODUCT_IMAGE_SWIPE_THRESHOLD && Math.abs(deltaY) < PRODUCT_IMAGE_SWIPE_THRESHOLD) {
+        event.preventDefault();
+        if (imageWrap.classList.contains("is-zoomed")) {
+          resetProductDiscoveryZoom(imageWrap);
+        } else {
+          setProductDiscoveryZoom(imageWrap, touch.clientX, touch.clientY);
+        }
+        return;
+      }
 
       if (Math.abs(deltaX) < PRODUCT_IMAGE_SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) {
         return;
@@ -3223,6 +3498,22 @@ async function enableProductDiscoveryOverlay() {
 
       stepProductDiscoveryImage(state, overlay, deltaX < 0 ? 1 : -1);
     }
+  }, { passive: false });
+
+  overlay.addEventListener("touchmove", (event) => {
+    if (!overlay.classList.contains("is-open") || event.touches.length !== 1) {
+      return;
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    const imageWrap = target?.closest(".odc-product-discovery__image-wrap");
+
+    if (!(imageWrap instanceof HTMLElement) || !imageWrap.classList.contains("is-zoomed")) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    setProductDiscoveryZoom(imageWrap, touch.clientX, touch.clientY);
   }, { passive: true });
 
   document.addEventListener("keydown", (event) => {
@@ -3257,7 +3548,27 @@ async function enableProductDiscoveryOverlay() {
 }
 
 function isProductDetailPath() {
-  return /^\/produits\/p\/[^/]+\/?$/.test(window.location.pathname) || /^\/produits\/p\/[^/]+\.html$/.test(window.location.pathname);
+  return window.location.pathname === "/product.html" ||
+    /^\/produits\/p\/[^/]+\/?$/.test(window.location.pathname) ||
+    /^\/produits\/p\/[^/]+\.html$/.test(window.location.pathname);
+}
+
+function getProductDetailTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const productId = params.get("product") || "";
+  const colorwayId = params.get("colorway") || "";
+
+  if (window.location.pathname === "/product.html") {
+    const product = getProductCatalogItemById(productId);
+    return product ? { product, colorwayId } : null;
+  }
+
+  const product = getProductCatalogItemForPath(window.location.pathname);
+  if (!product) {
+    return null;
+  }
+
+  return { product, colorwayId };
 }
 
 function buildLocalProductDetailMarkup(product, state) {
@@ -3318,75 +3629,59 @@ function buildLocalProductDetailMarkup(product, state) {
             <strong>Prix sur demande</strong>
           </div>
         `;
-  const productPurchaseMarkup = activePrice
-    ? `
-          <div class="product-add-to-cart">
-            <div class="product-add-to-cart-layout-wrapper">
-              <div class="product-purchase-controls-wrapper">
-                <div class="sqs-site-style-form product-quantity-input-wrapper" data-animation-role="content">
-                  <div class="form-item">
-                    <div class="effects-positioning-wrapper">
-                      <div class="product-quantity-input custom-form-element" role="group" aria-label="Quantity">
-                        <button class="decrease-button" type="button" aria-label="Decrease quantity by 1" data-odc-quantity="decrease">
-                          <span class="decrease-icon">
-                            <svg fill="currentColor" height="17" viewBox="0 0 22 22" width="17" xmlns="http://www.w3.org/2000/svg">
-                              <path clip-rule="evenodd" d="M3 10v2h17v-2H3z" fill-rule="evenodd"></path>
-                            </svg>
+  const productPurchaseMarkup = `
+        <div class="product-add-to-cart">
+          <div class="product-add-to-cart-layout-wrapper">
+            <div class="product-purchase-controls-wrapper">
+              ${activePrice
+                ? `
+                    <div class="sqs-site-style-form product-quantity-input-wrapper" data-animation-role="content">
+                      <div class="form-item">
+                        <div class="effects-positioning-wrapper">
+                          <div class="product-quantity-input custom-form-element" role="group" aria-label="Quantity">
+                            <button class="decrease-button" type="button" aria-label="Decrease quantity by 1" data-odc-quantity="decrease">
+                              <span class="decrease-icon">
+                                <svg fill="currentColor" height="17" viewBox="0 0 22 22" width="17" xmlns="http://www.w3.org/2000/svg">
+                                  <path clip-rule="evenodd" d="M3 10v2h17v-2H3z" fill-rule="evenodd"></path>
+                                </svg>
+                              </span>
+                            </button>
+                            <input name="quantity-input" type="number" value="${state.quantity}" min="1" max="9999" size="4" autocomplete="off" data-odc-quantity-input>
+                            <button class="increase-button" type="button" aria-label="Increase quantity by 1" data-odc-quantity="increase">
+                              <span class="increase-icon">
+                                <svg fill="currentColor" height="17" viewBox="0 0 22 22" width="17" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M12 3h-2v7H3v2h7v7h2v-7h7v-2h-7V3z"></path>
+                                </svg>
+                              </span>
+                            </button>
+                          </div>
+                          <span class="form-input-effects" aria-hidden="true">
+                            <span class="form-input-effects-border"></span>
+                            <span class="form-input-effects-highlight form-field-highlight-single-trace"></span>
                           </span>
-                        </button>
-                        <input name="quantity-input" type="number" value="${state.quantity}" min="1" max="9999" size="4" autocomplete="off" data-odc-quantity-input>
-                        <button class="increase-button" type="button" aria-label="Increase quantity by 1" data-odc-quantity="increase">
-                          <span class="increase-icon">
-                            <svg fill="currentColor" height="17" viewBox="0 0 22 22" width="17" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M12 3h-2v7H3v2h7v7h2v-7h7v-2h-7V3z"></path>
-                            </svg>
-                          </span>
-                        </button>
+                        </div>
                       </div>
-                      <span class="form-input-effects" aria-hidden="true">
-                        <span class="form-input-effects-border"></span>
-                        <span class="form-input-effects-highlight form-field-highlight-single-trace"></span>
-                      </span>
                     </div>
-                  </div>
-                </div>
-
-                <div class="sqs-add-to-cart-button-wrapper product-add-to-cart-button-wrapper" data-animation-role="button">
-                  <button class="sqs-add-to-cart-button sqs-suppress-edit-mode sqs-editable-button sqs-button-element--primary" type="button" data-odc-add-to-cart>
-                    <div class="sqs-add-to-cart-button-inner">
-                      <span class="add-to-cart-text">Add To Cart</span>
-                      <span class="cart-loader"></span>
-                      <span class="cart-added-text">Added!</span>
+                    <div class="sqs-add-to-cart-button-wrapper product-add-to-cart-button-wrapper" data-animation-role="button">
+                      <button class="sqs-add-to-cart-button sqs-suppress-edit-mode sqs-editable-button sqs-button-element--primary" type="button" data-odc-add-to-cart>
+                        <div class="sqs-add-to-cart-button-inner">
+                          <span class="add-to-cart-text">Add To Cart</span>
+                          <span class="cart-loader"></span>
+                          <span class="cart-added-text">Added!</span>
+                        </div>
+                      </button>
                     </div>
-                  </button>
-                </div>
-                <div class="odc-local-product-detail__professional">
-                  <button class="odc-product-discovery__sample" type="button" data-odc-detail-sample hidden>Demander échantillon</button>
-                  <div class="odc-product-discovery__sample-counter" data-odc-detail-sample-counter hidden></div>
-                </div>
+                  `
+                : ""}
+              <div class="odc-local-product-detail__actions">
+                <button class="odc-local-product-detail__contact-button" type="button" data-odc-detail-contact>Nous contacter</button>
+                <button class="odc-local-product-detail__secondary-action" type="button" data-odc-detail-sample>Demander échantillon</button>
               </div>
+              <div class="odc-local-product-detail__sample-counter" data-odc-detail-sample-counter></div>
             </div>
           </div>
-        `
-    : `
-          <div class="product-add-to-cart">
-            <div class="product-add-to-cart-layout-wrapper">
-              <div class="product-purchase-controls-wrapper">
-                <div class="sqs-add-to-cart-button-wrapper product-add-to-cart-button-wrapper" data-animation-role="button">
-                  <a class="sqs-add-to-cart-button sqs-suppress-edit-mode sqs-editable-button sqs-button-element--primary" href="/contacter.html">
-                    <div class="sqs-add-to-cart-button-inner">
-                      <span class="add-to-cart-text">Nous contacter</span>
-                    </div>
-                  </a>
-                </div>
-                <div class="odc-local-product-detail__professional">
-                  <button class="odc-product-discovery__sample" type="button" data-odc-detail-sample hidden>Demander échantillon</button>
-                  <div class="odc-product-discovery__sample-counter" data-odc-detail-sample-counter hidden></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
+        </div>
+      `;
 
   return `
     <div
@@ -3401,25 +3696,25 @@ function buildLocalProductDetailMarkup(product, state) {
       <nav class="product-nav" data-animation-role="content">
         <a href="/produits" class="product-nav-breadcrumb-link">Produits</a>
         <span>&rsaquo;</span>
-        <a href="${product.fullUrl}" class="product-nav-breadcrumb-link">${escapeHtml(product.title)}</a>
+        <a href="${getProductDetailHref(product, colorway)}" class="product-nav-breadcrumb-link">${escapeHtml(product.title)}</a>
       </nav>
 
       <div class="product-content-wrapper">
         <div class="odc-local-product-detail__gallery-column">
-          <div class="product-gallery odc-local-product-gallery" aria-label="Gallery">
-            <div class="product-gallery-scroll">
-              <div class="product-gallery-thumbnails" aria-label="Gallery thumbnails" role="group">
+          <div class="odc-local-product-gallery" aria-label="Gallery">
+            <div class="odc-local-product-gallery__thumbs-column">
+              <div class="odc-local-product-gallery__thumbs" aria-label="Gallery thumbnails" role="group">
                 ${images
                   .map(
                     (image, index) => `
                       <button
-                        class="product-gallery-thumbnails-item ${index === state.currentImageIndex ? "is-active" : ""}"
+                        class="odc-local-product-gallery__thumb ${index === state.currentImageIndex ? "is-active" : ""}"
                         type="button"
                         aria-label="Image ${index + 1} of ${images.length}"
                         data-odc-detail-thumb-index="${index}"
                       >
                         <img
-                          class="product-gallery-thumbnails-item-image"
+                          class="odc-local-product-gallery__thumb-image"
                           src="${image.assetUrl}"
                           alt=""
                         />
@@ -3430,29 +3725,33 @@ function buildLocalProductDetailMarkup(product, state) {
               </div>
             </div>
 
-            <div class="product-gallery-slides">
-              <div class="product-gallery-carousel-controls">
+            <div class="odc-local-product-gallery__stage">
+              <div class="odc-local-product-gallery__controls">
                 <button
-                  class="product-gallery-carousel-control product-gallery-prev"
+                  class="odc-local-product-gallery__control odc-local-product-gallery__control--prev"
                   type="button"
                   aria-label="Previous"
                   data-odc-detail-nav="prev"
                   ${images.length <= 1 ? "disabled" : ""}
                 ></button>
                 <button
-                  class="product-gallery-carousel-control product-gallery-next"
+                  class="odc-local-product-gallery__control odc-local-product-gallery__control--next"
                   type="button"
                   aria-label="Next"
                   data-odc-detail-nav="next"
                   ${images.length <= 1 ? "disabled" : ""}
                 ></button>
               </div>
-              <div class="product-gallery-current-slide-indicator">${state.currentImageIndex + 1}/${Math.max(images.length, 1)}</div>
-              <div class="product-gallery-slides-item odc-local-product-gallery__slide">
+              <button class="odc-local-product-detail__favorite" type="button" aria-label="Ajouter aux favoris" aria-pressed="false" data-odc-detail-favorite>
+                ${favoriteIconMarkup(false)}
+              </button>
+              <div class="odc-local-product-gallery__frame">
                 <img
-                  class="product-gallery-slides-item-image"
+                  class="odc-local-product-gallery__image"
                   src="${activeImage?.assetUrl || ""}"
                   alt="${escapeHtml(product.title)}"
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
             </div>
@@ -3484,19 +3783,25 @@ function enableLocalProductDetail() {
     return;
   }
 
-  const product = getProductCatalogItemForPath(window.location.pathname);
+  const detailTarget = getProductDetailTarget();
+  const product = detailTarget?.product || null;
   const root = document.querySelector(".product-detail");
 
   if (!product || !root || root.dataset.odcLocalDetailReady === "true") {
     return;
   }
 
+  const initialColorwayIndex = Math.max(
+    0,
+    getProductColorways(product).findIndex((colorway) => colorway.id === detailTarget?.colorwayId)
+  );
+
   const state = {
-    currentColorwayIndex: 0,
+    currentColorwayIndex: initialColorwayIndex,
     currentImageIndex: Math.max(
       0,
-      getProductImages(product, getProductActiveColorway(product, 0)).findIndex(
-        (image) => image.assetUrl === getProductMainImage(product, getProductActiveColorway(product, 0))?.assetUrl
+      getProductImages(product, getProductActiveColorway(product, initialColorwayIndex)).findIndex(
+        (image) => image.assetUrl === getProductMainImage(product, getProductActiveColorway(product, initialColorwayIndex))?.assetUrl
       )
     ),
     quantity: 1
@@ -3512,28 +3817,72 @@ function enableLocalProductDetail() {
   root.setAttribute("data-product-id", product.id);
   document.title = `${product.title} — Odyssée`;
 
+  const setLocalDetailZoom = (imageWrap, clientX, clientY) => {
+    if (!(imageWrap instanceof HTMLElement)) {
+      return;
+    }
+
+    const rect = imageWrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      return;
+    }
+
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+
+    imageWrap.style.setProperty("--odc-zoom-x", `${Math.max(0, Math.min(100, x))}%`);
+    imageWrap.style.setProperty("--odc-zoom-y", `${Math.max(0, Math.min(100, y))}%`);
+    imageWrap.classList.add("is-zoomed");
+    imageWrap.querySelector(".odc-local-product-gallery__image")?.style.setProperty("transform", "scale(3.2)");
+  };
+
+  const resetLocalDetailZoom = (imageWrap) => {
+    if (!(imageWrap instanceof HTMLElement)) {
+      return;
+    }
+
+    imageWrap.classList.remove("is-zoomed");
+    imageWrap.style.setProperty("--odc-zoom-x", "50%");
+    imageWrap.style.setProperty("--odc-zoom-y", "50%");
+    imageWrap.querySelector(".odc-local-product-gallery__image")?.style.removeProperty("transform");
+  };
+
   const syncProfessionalProductDetail = () => {
     renderLocalProductDetail(root, product, state);
     const professionalState = getProfessionalState();
     const sampleButton = root.querySelector("[data-odc-detail-sample]");
+    const favoriteButton = root.querySelector("[data-odc-detail-favorite]");
     const sampleCounter = root.querySelector("[data-odc-detail-sample-counter]");
+    const activeColorway = getProductActiveColorway(product, state.currentColorwayIndex);
+    const activeSelectionKey = getProductSelectionKey(product, activeColorway);
+
+    if (favoriteButton instanceof HTMLButtonElement) {
+      const isFavorite = hasFavoriteProduct(activeSelectionKey);
+      favoriteButton.innerHTML = favoriteIconMarkup(isFavorite);
+      favoriteButton.setAttribute("aria-label", isFavorite ? "Retirer des favoris" : "Ajouter aux favoris");
+      favoriteButton.setAttribute("aria-pressed", isFavorite ? "true" : "false");
+    }
 
     if (sampleButton instanceof HTMLButtonElement) {
-      const alreadyRequested = professionalState.sampleProductIds.includes(product.id);
-      const inSampleCart = hasSampleCartProduct(product.id);
+      const alreadyRequested = hasMatchingProductSelection(professionalState.sampleProductIds, activeSelectionKey);
+      const inSampleCart = hasSampleCartProduct(activeSelectionKey);
       const wouldExceedLimit = !inSampleCart && professionalState.samplesRemaining <= getSampleCartCount();
-      sampleButton.hidden = !professionalState.authenticated;
-      sampleButton.disabled = alreadyRequested || inSampleCart || wouldExceedLimit;
-      sampleButton.textContent = alreadyRequested
-        ? "Échantillon demandé"
-        : inSampleCart
-          ? "Dans votre panier"
-          : "Demander échantillon";
+      sampleButton.hidden = false;
+      sampleButton.disabled = professionalState.authenticated ? alreadyRequested || inSampleCart || wouldExceedLimit : false;
+      sampleButton.textContent = professionalState.authenticated
+        ? alreadyRequested
+          ? "Échantillon demandé"
+          : inSampleCart
+            ? "Dans votre panier"
+            : "Échantillon"
+        : "Échantillon";
     }
 
     if (sampleCounter instanceof HTMLElement) {
-      sampleCounter.hidden = !professionalState.authenticated;
-      sampleCounter.textContent = `Échantillons restants : ${professionalState.samplesRemaining}/${professionalState.sampleLimit || PROFESSIONAL_SAMPLE_LIMIT} • Panier : ${getSampleCartCount()}`;
+      sampleCounter.hidden = false;
+      sampleCounter.textContent = professionalState.authenticated
+        ? `Échantillons restants : ${professionalState.samplesRemaining}/${professionalState.sampleLimit || PROFESSIONAL_SAMPLE_LIMIT} • Panier : ${getSampleCartCount()}`
+        : "Connectez-vous en espace professionnel pour demander un échantillon.";
     }
   };
 
@@ -3606,10 +3955,36 @@ function enableLocalProductDetail() {
       return;
     }
 
+    const favoriteButton = target.closest("[data-odc-detail-favorite]");
+    if (favoriteButton) {
+      event.preventDefault();
+      const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
+      toggleFavoriteProduct(getProductSelectionKey(product, colorway))
+        .then(() => syncProfessionalProductDetail())
+        .catch((error) => console.error(error));
+      return;
+    }
+
+    const contactButton = target.closest("[data-odc-detail-contact]");
+    if (contactButton) {
+      event.preventDefault();
+      document.querySelector("[data-contract-contact-open]")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true })
+      );
+      return;
+    }
+
     const sampleButton = target.closest("[data-odc-detail-sample]");
     if (sampleButton) {
       event.preventDefault();
-      addSampleCartProduct(product.id);
+      if (!getProfessionalState().authenticated) {
+        document.querySelector("[data-professional-open]")?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true })
+        );
+        return;
+      }
+      const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
+      addSampleCartProduct(getProductSelectionKey(product, colorway));
       syncProfessionalProductDetail();
     }
   });
@@ -3626,13 +4001,76 @@ function enableLocalProductDetail() {
     target.value = String(state.quantity);
   });
 
+  root.addEventListener("mousemove", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const imageWrap = target?.closest(".odc-local-product-gallery__frame");
+
+    if (!(imageWrap instanceof HTMLElement) || window.matchMedia("(hover: none)").matches) {
+      return;
+    }
+
+    setLocalDetailZoom(imageWrap, event.clientX, event.clientY);
+  });
+
+  root.addEventListener("mouseleave", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const imageWrap = target?.closest(".odc-local-product-gallery__frame");
+
+    if (!(imageWrap instanceof HTMLElement) || window.matchMedia("(hover: none)").matches) {
+      return;
+    }
+
+    resetLocalDetailZoom(imageWrap);
+  }, true);
+
+  root.addEventListener("touchend", (event) => {
+    if (!window.matchMedia("(hover: none)").matches || event.changedTouches.length !== 1) {
+      return;
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    const imageWrap = target?.closest(".odc-local-product-gallery__frame");
+
+    if (!(imageWrap instanceof HTMLElement)) {
+      return;
+    }
+
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+
+    if (imageWrap.classList.contains("is-zoomed")) {
+      resetLocalDetailZoom(imageWrap);
+      return;
+    }
+
+    setLocalDetailZoom(imageWrap, touch.clientX, touch.clientY);
+  }, { passive: false, capture: true });
+
+  root.addEventListener("touchmove", (event) => {
+    if (!window.matchMedia("(hover: none)").matches || event.touches.length !== 1) {
+      return;
+    }
+
+    const target = event.target instanceof Element ? event.target : null;
+    const imageWrap = target?.closest(".odc-local-product-gallery__frame");
+
+    if (!(imageWrap instanceof HTMLElement) || !imageWrap.classList.contains("is-zoomed")) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    setLocalDetailZoom(imageWrap, touch.clientX, touch.clientY);
+  }, { passive: true });
+
   window.addEventListener(PROFESSIONAL_AUTH_EVENT, syncProfessionalProductDetail);
+  window.addEventListener(FAVORITES_CHANGE_EVENT, syncProfessionalProductDetail);
   window.addEventListener(SAMPLE_CART_CHANGE_EVENT, syncProfessionalProductDetail);
 }
 
 function initializeOdcSite() {
   updateCartIndicators();
   updateSampleCartIndicators();
+  updateFavoriteIndicators();
   replaceFooter();
   replaceHomeHeroWithVideo();
   applyContractPageContent();
@@ -3649,6 +4087,7 @@ function initializeOdcSite() {
   enableLocalProductDetail();
   enableLocalCartPage();
   enableSampleCheckoutPage();
+  enableFavoritesPage();
   enableProfessionalAuth();
 }
 

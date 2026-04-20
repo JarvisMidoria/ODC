@@ -5,6 +5,11 @@ import {
   getProfessionalState,
   removeProfessionalFavorite
 } from "./professional-auth.js";
+import {
+  buildProductSelectionKey,
+  parseProductSelectionKey,
+  selectionKeysMatch
+} from "./product-selection.js";
 
 const FAVORITES_STORAGE_KEY = "odc-favorites-v1";
 export const FAVORITES_CHANGE_EVENT = "odc:favoriteschange";
@@ -15,16 +20,17 @@ function hasWindow() {
   return typeof window !== "undefined";
 }
 
-function sanitizeProductId(productId) {
-  return typeof productId === "string" ? productId.trim() : "";
+function sanitizeSelectionKey(selectionKey) {
+  const parsed = parseProductSelectionKey(selectionKey);
+  return buildProductSelectionKey(parsed.productId, parsed.colorwayId);
 }
 
-function emitFavoriteChange(productIds) {
+function emitFavoriteChange(selectionKeys) {
   if (!hasWindow()) {
     return;
   }
 
-  window.dispatchEvent(new CustomEvent(FAVORITES_CHANGE_EVENT, { detail: [...productIds] }));
+  window.dispatchEvent(new CustomEvent(FAVORITES_CHANGE_EVENT, { detail: [...selectionKeys] }));
 }
 
 function readStoredFavorites() {
@@ -43,18 +49,18 @@ function readStoredFavorites() {
       return [];
     }
 
-    return [...new Set(parsed.map(sanitizeProductId).filter(Boolean))];
+    return [...new Set(parsed.map(sanitizeSelectionKey).filter(Boolean))];
   } catch {
     return [];
   }
 }
 
-function writeStoredFavorites(productIds) {
+function writeStoredFavorites(selectionKeys) {
   if (!hasWindow()) {
     return [];
   }
 
-  const sanitized = [...new Set(productIds.map(sanitizeProductId).filter(Boolean))];
+  const sanitized = [...new Set(selectionKeys.map(sanitizeSelectionKey).filter(Boolean))];
   window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(sanitized));
   emitFavoriteChange(sanitized);
   return sanitized;
@@ -79,17 +85,17 @@ export function getFavoriteProductIds() {
   return readStoredFavorites();
 }
 
-export function hasFavoriteProduct(productId) {
-  const normalized = sanitizeProductId(productId);
+export function hasFavoriteProduct(selectionKey) {
+  const normalized = sanitizeSelectionKey(selectionKey);
   if (!normalized) {
     return false;
   }
 
-  return getFavoriteProductIds().includes(normalized);
+  return getFavoriteProductIds().some((storedKey) => selectionKeysMatch(storedKey, normalized));
 }
 
-export async function toggleFavoriteProduct(productId) {
-  const normalized = sanitizeProductId(productId);
+export async function toggleFavoriteProduct(selectionKey) {
+  const normalized = sanitizeSelectionKey(selectionKey);
   if (!normalized) {
     return getFavoriteProductIds();
   }
@@ -108,8 +114,8 @@ export async function toggleFavoriteProduct(productId) {
   }
 
   const current = readStoredFavorites();
-  if (current.includes(normalized)) {
-    return writeStoredFavorites(current.filter((item) => item !== normalized));
+  if (current.some((storedKey) => selectionKeysMatch(storedKey, normalized))) {
+    return writeStoredFavorites(current.filter((item) => !selectionKeysMatch(item, normalized)));
   }
 
   return writeStoredFavorites([...current, normalized]);
@@ -125,10 +131,10 @@ export async function syncStoredFavoritesToAccount() {
 
   syncInFlight = true;
   try {
-    const existing = new Set(authState.favoriteProductIds || []);
-    for (const productId of localFavorites) {
-      if (!existing.has(productId)) {
-        await addProfessionalFavorite(productId);
+    const existing = authState.favoriteProductIds || [];
+    for (const selectionKey of localFavorites) {
+      if (!existing.some((storedKey) => selectionKeysMatch(storedKey, selectionKey))) {
+        await addProfessionalFavorite(selectionKey);
       }
     }
 

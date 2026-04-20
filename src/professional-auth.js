@@ -9,10 +9,24 @@ const defaultState = {
   samplesUsed: 0,
   samplesRemaining: 10,
   sampleProductIds: [],
+  pendingSampleProductIds: [],
   favoriteProductIds: []
 };
 
 let authState = { ...defaultState };
+
+async function readApiPayload(response) {
+  const raw = await response.text();
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("Serveur indisponible. Relancez l’API locale puis réessayez.");
+  }
+}
 
 function emit() {
   window.dispatchEvent(new CustomEvent(PROFESSIONAL_AUTH_EVENT, { detail: getProfessionalState() }));
@@ -22,8 +36,18 @@ export function getProfessionalState() {
   return {
     ...authState,
     sampleProductIds: [...(authState.sampleProductIds || [])],
+    pendingSampleProductIds: [...(authState.pendingSampleProductIds || [])],
     favoriteProductIds: [...(authState.favoriteProductIds || [])]
   };
+}
+
+export function setProfessionalPendingSampleProductIds(productIds) {
+  authState = {
+    ...authState,
+    pendingSampleProductIds: Array.isArray(productIds) ? [...new Set(productIds)] : []
+  };
+  emit();
+  return getProfessionalState();
 }
 
 export function isProfessionalAuthenticated() {
@@ -33,7 +57,7 @@ export function isProfessionalAuthenticated() {
 export async function fetchProfessionalSession() {
   const response = await apiFetch("/api/auth/me");
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   authState = {
     ...defaultState,
     ...payload
@@ -51,7 +75,7 @@ export async function registerProfessionalAccount(formData) {
     body: JSON.stringify(formData)
   });
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Inscription impossible.");
   }
@@ -68,7 +92,7 @@ export async function loginProfessionalAccount(credentials) {
     body: JSON.stringify(credentials)
   });
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Connexion impossible.");
   }
@@ -92,31 +116,6 @@ export async function logoutProfessionalAccount() {
   return getProfessionalState();
 }
 
-export async function requestProfessionalSample(productId) {
-  const response = await apiFetch("/api/samples/request", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ productId })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.error || "Demande d’échantillon impossible.");
-  }
-
-  authState = {
-    ...authState,
-    sampleLimit: payload.sampleLimit,
-    samplesUsed: payload.samplesUsed,
-    samplesRemaining: payload.samplesRemaining,
-    sampleProductIds: [...new Set([...(authState.sampleProductIds || []), payload.productId])]
-  };
-  emit();
-  return getProfessionalState();
-}
-
 export async function submitProfessionalSampleCheckout(productIds) {
   const response = await apiFetch("/api/samples/checkout", {
     method: "POST",
@@ -126,7 +125,7 @@ export async function submitProfessionalSampleCheckout(productIds) {
     body: JSON.stringify({ productIds })
   });
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Validation des échantillons impossible.");
   }
@@ -138,16 +137,57 @@ export async function submitProfessionalSampleCheckout(productIds) {
     samplesRemaining: payload.samplesRemaining,
     sampleProductIds: Array.isArray(payload.sampleProductIds)
       ? [...payload.sampleProductIds]
-      : [...(authState.sampleProductIds || [])]
+      : [...(authState.sampleProductIds || [])],
+    pendingSampleProductIds: Array.isArray(payload.pendingSampleProductIds)
+      ? [...payload.pendingSampleProductIds]
+      : [...(authState.pendingSampleProductIds || [])]
   };
   emit();
   return payload;
 }
 
+export async function fetchProfessionalPendingSamples() {
+  const response = await apiFetch("/api/samples/pending");
+
+  const payload = await readApiPayload(response);
+  if (!response.ok) {
+    throw new Error(payload.error || "Impossible de charger le panier d’échantillons.");
+  }
+
+  authState = {
+    ...authState,
+    pendingSampleProductIds: Array.isArray(payload.pendingSampleProductIds) ? [...payload.pendingSampleProductIds] : []
+  };
+  emit();
+  return getProfessionalState();
+}
+
+export async function replaceProfessionalPendingSamples(productIds) {
+  const response = await apiFetch("/api/samples/pending", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ productIds })
+  });
+
+  const payload = await readApiPayload(response);
+  if (!response.ok) {
+    throw new Error(payload.error || "Impossible de mettre à jour le panier d’échantillons.");
+  }
+
+  authState = {
+    ...authState,
+    pendingSampleProductIds: Array.isArray(payload.pendingSampleProductIds) ? [...payload.pendingSampleProductIds] : []
+  };
+  emit();
+  return getProfessionalState();
+}
+
 export async function fetchProfessionalFavorites() {
   const response = await apiFetch("/api/favorites");
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Impossible de charger les favoris.");
   }
@@ -165,7 +205,7 @@ export async function addProfessionalFavorite(productId) {
     method: "POST"
   });
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Impossible d’ajouter ce favori.");
   }
@@ -183,7 +223,7 @@ export async function removeProfessionalFavorite(productId) {
     method: "DELETE"
   });
 
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) {
     throw new Error(payload.error || "Impossible de retirer ce favori.");
   }
