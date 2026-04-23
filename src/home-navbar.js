@@ -36,6 +36,7 @@ import {
   selectionKeysMatch
 } from "./product-selection.js";
 import { loadSiteContent } from "./site-content.js";
+import { apiFetch } from "./api-client.js";
 import {
   PROFESSIONAL_AUTH_EVENT,
   fetchProfessionalSession,
@@ -287,6 +288,15 @@ function professionalIconMarkup() {
         <path d="M5.5 18.25a6.5 6.5 0 0 1 13 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </span>
+  `;
+}
+
+function eyeIconMarkup() {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M1.5 12s3.8-6 10.5-6 10.5 6 10.5 6-3.8 6-10.5 6S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    </svg>
   `;
 }
 
@@ -582,10 +592,20 @@ function ensureProfessionalModal() {
               </select>
             </label>
             <label>Mot de passe
-              <input type="password" name="password" required />
+              <span class="odc-professional-form__password-field">
+                <input type="password" name="password" required />
+                <button type="button" class="odc-professional-form__password-toggle" data-password-toggle aria-label="Afficher le mot de passe">
+                  <span aria-hidden="true">${eyeIconMarkup()}</span>
+                </button>
+              </span>
             </label>
             <label>Confirmer le mot de passe
-              <input type="password" name="passwordConfirm" required />
+              <span class="odc-professional-form__password-field">
+                <input type="password" name="passwordConfirm" required />
+                <button type="button" class="odc-professional-form__password-toggle" data-password-toggle aria-label="Afficher le mot de passe">
+                  <span aria-hidden="true">${eyeIconMarkup()}</span>
+                </button>
+              </span>
             </label>
             <button class="odc-professional-form__submit" type="submit">Créer un compte</button>
             <p class="odc-professional-form__feedback" data-professional-register-feedback aria-live="polite"></p>
@@ -655,6 +675,21 @@ function enableProfessionalAuth() {
     node.classList.toggle("is-success", !isError && Boolean(message));
   };
 
+  const syncPublicTitle = (name) => {
+    if (!(title instanceof HTMLElement)) {
+      return;
+    }
+
+    if (name === "register") {
+      title.textContent = "Sign Up";
+      return;
+    }
+
+    if (name === "login") {
+      title.textContent = "Log In";
+    }
+  };
+
   const activatePanel = (name) => {
     modal.querySelectorAll("[data-professional-tab]").forEach((button) => {
       const isActive = button.getAttribute("data-professional-tab") === name;
@@ -667,6 +702,8 @@ function enableProfessionalAuth() {
       panel.classList.toggle("is-active", isActive);
       panel.hidden = !isActive;
     });
+
+    syncPublicTitle(name);
   };
 
   const renderPanels = () => {
@@ -691,9 +728,6 @@ function enableProfessionalAuth() {
       return;
     }
 
-    if (title instanceof HTMLElement) {
-      title.textContent = "Connexion et création de compte";
-    }
     if (tabs instanceof HTMLElement) {
       tabs.hidden = false;
     }
@@ -753,6 +787,26 @@ function enableProfessionalAuth() {
     }
     button.dataset.odcProfessionalTabReady = "true";
     button.addEventListener("click", () => activatePanel(button.getAttribute("data-professional-tab")));
+  });
+
+  modal.querySelectorAll("[data-password-toggle]").forEach((button) => {
+    if (!(button instanceof HTMLButtonElement) || button.dataset.odcPasswordToggleReady === "true") {
+      return;
+    }
+
+    button.dataset.odcPasswordToggleReady = "true";
+    button.addEventListener("click", () => {
+      const field = button.closest(".odc-professional-form__password-field");
+      const input = field?.querySelector("input");
+      if (!(input instanceof HTMLInputElement)) {
+        return;
+      }
+
+      const isVisible = input.type === "text";
+      input.type = isVisible ? "password" : "text";
+      button.classList.toggle("is-active", !isVisible);
+      button.setAttribute("aria-label", isVisible ? "Afficher le mot de passe" : "Masquer le mot de passe");
+    });
   });
 
   if (loginForm instanceof HTMLFormElement && loginForm.dataset.odcProfessionalReady !== "true") {
@@ -1370,12 +1424,55 @@ function enableContractContactModal() {
 
   if (form && form.dataset.odcSubmitReady !== "true") {
     form.dataset.odcSubmitReady = "true";
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      form.reset();
-      syncSectorField();
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      const formData = new FormData(form);
+      const payload = {
+        name: String(formData.get("name") || "").trim(),
+        email: String(formData.get("email") || "").trim(),
+        phone: String(formData.get("phone") || "").trim(),
+        subject: String(formData.get("subject") || "").trim(),
+        sector: String(formData.get("sector") || "").trim(),
+        message: String(formData.get("message") || "").trim(),
+        source: "contract-modal"
+      };
+
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+      }
+
       if (feedback) {
-        feedback.textContent = "Merci. Votre message a bien été envoyé.";
+        feedback.textContent = "Envoi en cours…";
+      }
+
+      try {
+        const response = await apiFetch("/api/contact", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        const responseBody = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(responseBody?.error || "Impossible d’envoyer votre message.");
+        }
+
+        form.reset();
+        syncSectorField();
+        if (feedback) {
+          feedback.textContent = responseBody?.message || "Merci. Votre message a bien été envoyé.";
+        }
+      } catch (error) {
+        if (feedback) {
+          feedback.textContent = error.message || "Impossible d’envoyer votre message.";
+        }
+      } finally {
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.disabled = false;
+        }
       }
     });
   }
@@ -2553,6 +2650,22 @@ function getDisplayCountForProducts(products) {
   return products.reduce((total, product) => total + getDisplayCountForProduct(product), 0);
 }
 
+function getMobileFirstFilterOptions(options, selectedKey) {
+  if (!window.matchMedia("(max-width: 640px)").matches || !selectedKey) {
+    return options;
+  }
+
+  const selectedIndex = options.findIndex((option) => slugifyFilterKey(option) === selectedKey);
+  if (selectedIndex <= 0) {
+    return options;
+  }
+
+  const nextOptions = options.slice();
+  const [selectedOption] = nextOptions.splice(selectedIndex, 1);
+  nextOptions.unshift(selectedOption);
+  return nextOptions;
+}
+
 function buildProductTypeFilterMarkup(state) {
   const counts = new Map();
   state.items.forEach((item) => {
@@ -2564,6 +2677,8 @@ function buildProductTypeFilterMarkup(state) {
   });
   const totalVisible = getDisplayCountForProducts(state.filteredItems);
   const totalItems = getDisplayCountForProducts(state.items);
+  const orderedTypes = getMobileFirstFilterOptions(state.availableTypes, state.selectedType);
+  const orderedSubtypes = getMobileFirstFilterOptions(state.availableSubtypes, state.selectedSubtype);
 
   return `
     <section class="odc-product-brand-filter" aria-label="Filtrer par type de produit">
@@ -2581,7 +2696,7 @@ function buildProductTypeFilterMarkup(state) {
           <span>Tous les types</span>
           <small>${totalItems}</small>
         </button>
-        ${state.availableTypes
+        ${orderedTypes
           .map((type) => {
             const key = slugifyFilterKey(type);
             const count = counts.get(key) || 0;
@@ -2615,7 +2730,7 @@ function buildProductTypeFilterMarkup(state) {
                   <span>Tous les sous-types</span>
                   <small>${getDisplayCountForProducts(state.itemsByType)}</small>
                 </button>
-                ${state.availableSubtypes
+                ${orderedSubtypes
                   .map((subtype) => {
                     const key = slugifyFilterKey(subtype);
                     const count = state.itemsBySubtype.get(key) || 0;
@@ -2763,6 +2878,19 @@ function enableProductTypeFilter(state) {
 
   render();
   bindProductGridFavoriteInteractions(state);
+
+  if (navAndFilters.dataset.odcBrandFilterViewportBound !== "true") {
+    navAndFilters.dataset.odcBrandFilterViewportBound = "true";
+    let wasMobileViewport = window.matchMedia("(max-width: 640px)").matches;
+    window.addEventListener("resize", () => {
+      const isMobileViewport = window.matchMedia("(max-width: 640px)").matches;
+      if (isMobileViewport === wasMobileViewport) {
+        return;
+      }
+      wasMobileViewport = isMobileViewport;
+      render();
+    });
+  }
 
   if (navAndFilters.dataset.odcBrandFilterBound === "true") {
     return;
@@ -2926,6 +3054,10 @@ function syncProductDiscoveryColorwayViewport(state, overlay) {
   });
 }
 
+function isMobileProductDiscoveryViewport() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
 function renderProductDiscovery(state, overlay) {
   const product = state.items[state.currentIndex];
   const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
@@ -2955,21 +3087,31 @@ function renderProductDiscovery(state, overlay) {
     const colorways = getProductColorways(product);
     const totalPages = Math.max(1, Math.ceil(colorways.length / PRODUCT_COLORWAYS_PER_PAGE));
     const currentPage = Math.max(0, Math.min(state.currentColorwayPage, totalPages - 1));
+    const isMobileViewport = isMobileProductDiscoveryViewport();
+    const visibleColorways = isMobileViewport
+      ? colorways
+      : colorways.slice(
+          currentPage * PRODUCT_COLORWAYS_PER_PAGE,
+          (currentPage + 1) * PRODUCT_COLORWAYS_PER_PAGE
+        );
     state.currentColorwayPage = currentPage;
     colorwaysNode.innerHTML = colorways.length
       ? `
           <div class="odc-product-colorways__group">
             <p class="odc-product-colorways__label">Coloris disponibles</p>
             <div class="odc-product-colorways" data-odc-colorways-strip>
-            ${colorways
+            ${visibleColorways
               .map(
                 (item, index) => {
+                  const absoluteIndex = isMobileViewport
+                    ? index
+                    : currentPage * PRODUCT_COLORWAYS_PER_PAGE + index;
                   return `
                   <button
-                    class="odc-product-colorways__button ${index === state.currentColorwayIndex ? "is-active" : ""}"
+                    class="odc-product-colorways__button ${absoluteIndex === state.currentColorwayIndex ? "is-active" : ""}"
                     type="button"
-                    data-odc-colorway-index="${index}"
-                    aria-pressed="${index === state.currentColorwayIndex ? "true" : "false"}"
+                    data-odc-colorway-index="${absoluteIndex}"
+                    aria-pressed="${absoluteIndex === state.currentColorwayIndex ? "true" : "false"}"
                   >
                     <span class="odc-product-colorways__media">
                       ${
@@ -2984,7 +3126,7 @@ function renderProductDiscovery(state, overlay) {
               )
               .join("")}
             </div>
-            <div class="odc-product-colorways__pager">
+            <div class="odc-product-colorways__pager" ${isMobileViewport ? "hidden" : ""}>
               <button class="odc-product-colorways__pager-button" type="button" data-odc-colorway-page="prev" ${currentPage === 0 ? "disabled" : ""}>Prec</button>
               <span class="odc-product-colorways__pager-label">${currentPage + 1} / ${totalPages}</span>
               <button class="odc-product-colorways__pager-button" type="button" data-odc-colorway-page="next" ${currentPage === totalPages - 1 ? "disabled" : ""}>Suiv</button>
@@ -2993,7 +3135,9 @@ function renderProductDiscovery(state, overlay) {
         `
       : "";
 
-    syncProductDiscoveryColorwayViewport(state, overlay);
+    if (isMobileViewport) {
+      syncProductDiscoveryColorwayViewport(state, overlay);
+    }
   }
 
   if (description) {
@@ -3463,7 +3607,11 @@ async function enableProductDiscoveryOverlay() {
         const deltaX = touch.clientX - colorwaySwipe.startX;
         const deltaY = touch.clientY - colorwaySwipe.startY;
 
-        if (Math.abs(deltaX) >= PRODUCT_COLORWAY_SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (
+          !window.matchMedia("(max-width: 640px)").matches &&
+          Math.abs(deltaX) >= PRODUCT_COLORWAY_SWIPE_THRESHOLD &&
+          Math.abs(deltaX) > Math.abs(deltaY)
+        ) {
           stepProductDiscoveryColorwayPage(state, overlay, deltaX < 0 ? 1 : -1);
           return;
         }

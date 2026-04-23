@@ -15,6 +15,7 @@ export const ADMIN_ASSET_OPTIONS = [
 ];
 
 export const DEFAULT_SITE_CONTENT = {
+  assets: clone(ADMIN_ASSET_OPTIONS),
   products: {
     importLinks: []
   },

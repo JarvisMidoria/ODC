@@ -583,12 +583,13 @@ body.odc-home-shell {
 
 .odc-contract-space-page #siteWrapper {
   min-height: 100vh;
+  padding-top: 72px;
   background: #f8f4ef;
 }
 
 .odc-contract-space-main {
   min-height: auto;
-  padding-top: 72px;
+  padding-top: 0;
   display: block;
   background:
     radial-gradient(circle at 50% 0%, rgba(0, 0, 0, 0.04), transparent 38%),
@@ -705,7 +706,7 @@ body.odc-home-shell {
   min-height: auto;
   place-items: initial;
   align-content: start;
-  padding-top: clamp(1rem, 2vw, 1.5rem);
+  padding-top: 0.35rem;
 }
 
 .odc-contract-clients__intro {
@@ -2004,7 +2005,7 @@ body.odc-home-shell {
   .odc-contract-clients {
     width: min(100%, calc(100vw - 2rem));
     max-width: calc(100vw - 2rem);
-    padding: 1.4rem 0 2.4rem;
+    padding: 0.35rem 0 2.4rem;
   }
 
   .odc-contract-clients__grid {
@@ -3878,12 +3879,10 @@ body.odc-home-shell {
 
 .odc-product-discovery__colorways .odc-product-colorways {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, calc((100% - 0.9rem) / 4));
-  gap: 0.3rem;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: flex-start;
+  gap: 0.5rem;
+  overflow: visible;
   padding-bottom: 0.1rem;
 }
 
@@ -4241,6 +4240,47 @@ body.odc-home-shell {
   background: #fff;
   padding: 0 0.95rem;
   font: inherit;
+}
+
+.odc-professional-form__password-field {
+  position: relative;
+  display: block;
+}
+
+.odc-professional-form__password-field input {
+  padding-right: 4.8rem;
+}
+
+.odc-professional-form__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: rgba(17, 15, 14, 0.58);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.odc-professional-form__password-toggle:hover,
+.odc-professional-form__password-toggle:focus-visible {
+  color: #111;
+}
+
+.odc-professional-form__password-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.odc-professional-form__password-toggle.is-active {
+  color: #111;
 }
 
 .odc-professional-form__submit {
@@ -4641,11 +4681,6 @@ body.odc-home-shell {
     width: 64px;
     height: 64px;
   }
-
-  .odc-product-discovery__colorways .odc-product-colorways__pager {
-    display: none;
-  }
-
   .odc-product-discovery__edge {
     display: none;
   }
@@ -4683,6 +4718,28 @@ body.odc-home-shell {
     border-radius: 24px;
     overflow: visible;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .odc-product-discovery__colorways .odc-product-colorways {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .odc-product-discovery__colorways .odc-product-colorways__button {
+    flex: 0 0 64px;
+    width: 64px;
+  }
+
+  .odc-product-discovery__colorways .odc-product-colorways__media {
+    width: 64px;
+    height: 64px;
+  }
+
+  .odc-product-discovery__colorways .odc-product-colorways__pager {
+    display: none;
   }
 
   .odc-product-discovery__stage-arrow {

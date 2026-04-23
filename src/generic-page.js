@@ -1,4 +1,5 @@
 import { ambiances, brands, site } from "./data.js";
+import { apiFetch } from "./api-client.js";
 import { mountReveal, mountShell } from "./shell.js";
 
 mountShell();
@@ -57,12 +58,55 @@ if (showroomGrid) {
 const form = document.querySelector("#contact-form");
 const feedback = document.querySelector("#contact-feedback");
 
-form?.addEventListener("submit", (event) => {
+form?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  form.reset();
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
+
+  const submitButton = form.querySelector('button[type="submit"]');
+  const formData = new FormData(form);
+  const payload = {
+    name: String(formData.get("name") || "").trim(),
+    email: String(formData.get("email") || "").trim(),
+    subject: String(formData.get("subject") || "").trim(),
+    message: String(formData.get("message") || "").trim(),
+    source: "contact-page"
+  };
+
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.disabled = true;
+  }
+
   if (feedback) {
-    feedback.textContent =
-      "Merci. Votre message a bien été envoyé.";
+    feedback.textContent = "Envoi en cours…";
+  }
+
+  try {
+    const response = await apiFetch("/api/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    const responseBody = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(responseBody?.error || "Impossible d’envoyer votre message.");
+    }
+
+    form.reset();
+    if (feedback) {
+      feedback.textContent = responseBody?.message || "Merci. Votre message a bien été envoyé.";
+    }
+  } catch (error) {
+    if (feedback) {
+      feedback.textContent = error.message || "Impossible d’envoyer votre message.";
+    }
+  } finally {
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = false;
+    }
   }
 });
 

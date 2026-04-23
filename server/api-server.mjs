@@ -11,6 +11,10 @@ const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 const AUTH_WINDOW_MS = 1000 * 60 * 15;
 const AUTH_MAX_ATTEMPTS = 8;
 const SAMPLE_ORDER_STATUSES = new Set(["pending", "processing", "completed"]);
+const CONTACT_MESSAGE_STATUSES = new Set(["unread", "read", "archived"]);
+const BREVO_API_KEY = String(process.env.BREVO_API_KEY || "").trim();
+const CONTACT_NOTIFICATION_TO = String(process.env.CONTACT_NOTIFICATION_TO || "contact@odyssee.ma").trim();
+const MAIL_FROM = String(process.env.MAIL_FROM || "contact@odyssee.ma").trim();
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || "").trim().replace(/\/+$/, "");
 const API_ALLOWED_ORIGINS = [
   FRONTEND_ORIGIN,
@@ -36,7 +40,7 @@ app.use((req, res, next) => {
     res.header("Vary", "Origin");
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   }
 
   if (req.method === "OPTIONS") {
@@ -216,6 +220,172 @@ function listSampleOrders() {
     submittedAt: row.submitted_at,
     productIds: itemsByOrderId.get(row.id) || []
   }));
+}
+
+function listContactMessages() {
+  const rows = db.prepare(`
+    SELECT
+      id,
+      name,
+      email,
+      phone,
+      subject,
+      sector,
+      message,
+      source,
+      status,
+      created_at
+    FROM contact_messages
+    ORDER BY
+      CASE status
+        WHEN 'unread' THEN 0
+        WHEN 'read' THEN 1
+        ELSE 2
+      END ASC,
+      created_at DESC,
+      id DESC
+  `).all();
+
+  const unreadCount = rows.filter((row) => row.status === "unread").length;
+
+  return {
+    unreadCount,
+    messages: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone || "",
+      subject: row.subject,
+      sector: row.sector || "",
+      message: row.message,
+      source: row.source || "contact-page",
+      status: row.status || "unread",
+      createdAt: row.created_at
+    }))
+  };
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function sendContactNotificationEmail(contactMessage) {
+  if (!BREVO_API_KEY || !MAIL_FROM || !CONTACT_NOTIFICATION_TO) {
+    return { skipped: true };
+  }
+
+  const subjectLabelMap = {
+    showroom: "Visite showroom",
+    residential: "Projet résidentiel",
+    contract: "Projet contract",
+    professional: "Projet professionnel"
+  };
+
+  const subjectLabel = subjectLabelMap[contactMessage.subject] || contactMessage.subject || "Nouveau message";
+  const escapedMessage = escapeHtml(contactMessage.message).replace(/\n/g, "<br />");
+  const htmlContent = `
+    <div style="margin:0;padding:32px 0;background:#f3ede4;font-family:Arial,'Helvetica Neue',sans-serif;color:#181411;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:640px;max-width:640px;border-collapse:collapse;background:#fffdf8;border:1px solid #e5d8ca;">
+              <tr>
+                <td style="padding:28px 32px 20px;background:#181411;color:#fff8ef;">
+                  <div style="font-family:Georgia,'Times New Roman',serif;font-size:34px;letter-spacing:0.14em;line-height:1;">ODYSSEE</div>
+                  <div style="margin-top:14px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,248,239,0.68);">Nouveau message entrant</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:28px 32px 14px;">
+                  <h1 style="margin:0 0 8px;font-size:28px;line-height:1.05;font-weight:500;">${escapeHtml(subjectLabel)}</h1>
+                  <p style="margin:0;color:#6f665f;font-size:15px;line-height:1.6;">Un nouveau message a été envoyé depuis le formulaire de contact Odyssée.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 32px 20px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#fbf7f1;border:1px solid #e9dfd4;">
+                    <tr>
+                      <td style="padding:16px 18px;border-bottom:1px solid #e9dfd4;width:50%;">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Nom</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(contactMessage.name)}</div>
+                      </td>
+                      <td style="padding:16px 18px;border-bottom:1px solid #e9dfd4;">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Email</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(contactMessage.email)}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:16px 18px;border-bottom:1px solid #e9dfd4;">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Téléphone</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(contactMessage.phone || "Non renseigné")}</div>
+                      </td>
+                      <td style="padding:16px 18px;border-bottom:1px solid #e9dfd4;">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Source</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(contactMessage.source || "contact-page")}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:16px 18px;border-bottom:${contactMessage.sector ? "1px solid #e9dfd4" : "0"};">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Sujet</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(subjectLabel)}</div>
+                      </td>
+                      <td style="padding:16px 18px;border-bottom:${contactMessage.sector ? "1px solid #e9dfd4" : "0"};">
+                        <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;">Secteur</div>
+                        <div style="margin-top:6px;font-size:16px;color:#181411;">${escapeHtml(contactMessage.sector || "—")}</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 32px 32px;">
+                  <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8a7f75;margin-bottom:10px;">Message</div>
+                  <div style="padding:18px 20px;background:#f6f0e8;border:1px solid #e5d8ca;font-size:16px;line-height:1.7;color:#181411;">${escapedMessage}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": BREVO_API_KEY
+    },
+    body: JSON.stringify({
+      sender: {
+        email: MAIL_FROM,
+        name: "Odyssée"
+      },
+      to: [
+        {
+          email: CONTACT_NOTIFICATION_TO
+        }
+      ],
+      replyTo: {
+        email: contactMessage.email,
+        name: contactMessage.name
+      },
+      subject: `[Odyssée] ${subjectLabel}`,
+      htmlContent
+    })
+  });
+
+  if (!response.ok) {
+    const payload = await response.text().catch(() => "");
+    throw new Error(payload || "Brevo a refusé l’envoi.");
+  }
+
+  return { success: true };
 }
 
 function buildSessionPayload(user) {
@@ -512,6 +682,46 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ success: true });
 });
 
+app.post("/api/contact", async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  const email = normalizeEmail(req.body?.email);
+  const phone = String(req.body?.phone || "").trim();
+  const subject = String(req.body?.subject || "").trim();
+  const sector = String(req.body?.sector || "").trim();
+  const message = String(req.body?.message || "").trim();
+  const source = String(req.body?.source || "contact-page").trim() || "contact-page";
+
+  if (!name || !email || !subject || !message) {
+    res.status(400).json({ error: "Nom, email, sujet et message sont requis." });
+    return;
+  }
+
+  const insertResult = db.prepare(`
+    INSERT INTO contact_messages (name, email, phone, subject, sector, message, source, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'unread')
+  `).run(name, email, phone, subject, sector, message, source);
+
+  try {
+    await sendContactNotificationEmail({
+      id: insertResult.lastInsertRowid,
+      name,
+      email,
+      phone,
+      subject,
+      sector,
+      message,
+      source
+    });
+  } catch (error) {
+    console.error("Brevo contact notification failed:", error);
+  }
+
+  res.status(201).json({
+    success: true,
+    message: "Merci. Votre message a bien été envoyé."
+  });
+});
+
 app.post("/api/samples/checkout", requireSession, (req, res) => {
   const productIds = Array.isArray(req.body?.productIds)
     ? [...new Set(req.body.productIds.map((item) => String(item || "").trim()).filter(Boolean))]
@@ -803,6 +1013,39 @@ app.patch("/api/admin/sample-orders/:orderId", requireAdmin, (req, res) => {
     orderId,
     status: updatedOrder?.status || "pending",
     adminNotes: updatedOrder?.admin_notes || ""
+  });
+});
+
+app.get("/api/admin/contact-messages", requireAdmin, (_req, res) => {
+  res.json(listContactMessages());
+});
+
+app.patch("/api/admin/contact-messages/:messageId", requireAdmin, (req, res) => {
+  const messageId = Number(req.params.messageId);
+  const status = String(req.body?.status || "").trim().toLowerCase();
+
+  if (!Number.isInteger(messageId) || messageId <= 0) {
+    res.status(400).json({ error: "Message invalide." });
+    return;
+  }
+
+  if (!CONTACT_MESSAGE_STATUSES.has(status)) {
+    res.status(400).json({ error: "Statut invalide." });
+    return;
+  }
+
+  const existingMessage = db.prepare(`SELECT id FROM contact_messages WHERE id = ?`).get(messageId);
+  if (!existingMessage) {
+    res.status(404).json({ error: "Message introuvable." });
+    return;
+  }
+
+  db.prepare(`UPDATE contact_messages SET status = ? WHERE id = ?`).run(status, messageId);
+
+  res.json({
+    success: true,
+    messageId,
+    status
   });
 });
 

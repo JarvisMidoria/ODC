@@ -6,7 +6,7 @@ import {
   saveSiteContent
 } from "./site-content.js";
 import { apiFetch } from "./api-client.js";
-import { getProductCatalogItemById, getProductColorwayById } from "./product-catalog-data.js";
+import { getProductCatalogItemById, getProductColorwayById, productCatalogItems } from "./product-catalog-data.js";
 import { parseProductSelectionKey } from "./product-selection.js";
 
 const state = {
@@ -22,13 +22,21 @@ const state = {
   sampleOrders: [],
   sampleOrdersLoaded: false,
   sampleOrdersError: "",
+  contactUnreadCount: 0,
   sampleOrdersUpdating: [],
   sampleOrderDraftNotes: {},
   sampleOrdersSearch: "",
   sampleOrdersDate: "",
   sampleOrdersSort: "date-desc",
   sampleOrdersPage: 1,
-  sampleOrdersPageSize: 10
+  sampleOrdersPageSize: 10,
+  assetDraftLabel: "",
+  assetDraftSrc: ""
+};
+
+const catalogStats = {
+  parentProducts: productCatalogItems.length,
+  visibleProducts: productCatalogItems.reduce((count, item) => count + (Array.isArray(item.colorways) && item.colorways.length ? item.colorways.length : 1), 0)
 };
 
 function escapeHtml(value) {
@@ -59,12 +67,62 @@ function shortcutCardEditor(card, index) {
         </label>
         <label>Visuel
           <select data-admin-shortcut-image="${index}">
-            ${ADMIN_ASSET_OPTIONS.map((asset) => `<option value="${asset.src}" ${asset.src === card.image ? "selected" : ""}>${asset.label}</option>`).join("")}
+            ${renderAssetOptions(card.image)}
           </select>
         </label>
       </div>
     </article>
   `;
+}
+
+function getAdminAssets() {
+  if (Array.isArray(state.content.assets)) {
+    return state.content.assets;
+  }
+
+  return ADMIN_ASSET_OPTIONS;
+}
+
+function ensureAssetOption(selectedSrc) {
+  const normalizedSrc = String(selectedSrc || "").trim();
+  const assets = getAdminAssets();
+  if (!normalizedSrc) {
+    return assets;
+  }
+
+  const hasMatch = assets.some((asset) => asset.src === normalizedSrc);
+  if (hasMatch) {
+    return assets;
+  }
+
+  return [
+    {
+      id: `orphan-${normalizedSrc}`,
+      label: "Asset actuel",
+      src: normalizedSrc
+    },
+    ...assets
+  ];
+}
+
+function renderAssetOptions(selectedSrc = "") {
+  return ensureAssetOption(selectedSrc).map((asset) => `
+    <option value="${asset.src}" ${asset.src === selectedSrc ? "selected" : ""}>${escapeHtml(asset.label)}</option>
+  `).join("");
+}
+
+function slugifyAssetId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildAssetId(label, src) {
+  return slugifyAssetId(label) || slugifyAssetId(src) || `asset-${Date.now()}`;
 }
 
 function renderProductQueue() {
@@ -420,6 +478,7 @@ async function loadAdminAccess() {
     render();
     void loadProfessionals();
     void loadSampleOrders();
+    void loadContactInboxSummary();
   } catch (error) {
     state.accessError = error.message || "Impossible de vérifier la session administrateur.";
     state.accessLoaded = true;
@@ -461,6 +520,22 @@ async function loadSampleOrders() {
   }
 
   state.sampleOrdersLoaded = true;
+  render();
+}
+
+async function loadContactInboxSummary() {
+  try {
+    const response = await apiFetch("/api/admin/contact-messages");
+    if (!response.ok) {
+      throw new Error("Impossible de charger l’inbox.");
+    }
+
+    const payload = await response.json();
+    state.contactUnreadCount = Number(payload?.unreadCount) || 0;
+  } catch {
+    state.contactUnreadCount = 0;
+  }
+
   render();
 }
 
@@ -596,9 +671,13 @@ function render() {
   if (!app) return;
 
   const { home, contract, showrooms, products } = state.content;
+  const assetLibrary = getAdminAssets();
   const pendingOrders = state.sampleOrders.filter((order) => order.status === "pending").length;
   const blockedProfessionals = state.professionals.filter((professional) => professional.status === "blocked").length;
   const activeProfessionals = state.professionals.length - blockedProfessionals;
+  const contactUnreadBadge = state.contactUnreadCount > 0
+    ? `<span class="admin-nav-badge">${escapeHtml(String(state.contactUnreadCount))}</span>`
+    : "";
 
   if (!state.accessLoaded) {
     app.innerHTML = `
@@ -631,14 +710,15 @@ function render() {
     <div class="admin-shell">
       <aside class="admin-sidebar">
         <div class="admin-sidebar__brand">
-          <div class="admin-wordmark" aria-label="Odyssée">ODYSSEE</div>
+          <img class="admin-sidebar__logo" src="/custom-assets/logo-odc-white.png" alt="Odyssée" />
           <div class="admin-sidebar__brand-meta">
             <span>Admin</span>
-            <strong>Back Office</strong>
+            <strong>Control Room</strong>
           </div>
         </div>
         <nav class="admin-sidebar__nav" aria-label="Navigation admin">
           <a href="#admin-overview">Vue d’ensemble</a>
+          <a href="/admin-inbox.html">Inbox ${contactUnreadBadge}</a>
           <a href="#admin-sample-orders">Demandes</a>
           <a href="#admin-professionals">Comptes pro</a>
           <a href="#admin-products">Imports produits</a>
@@ -657,15 +737,25 @@ function render() {
         <header id="admin-overview" class="admin-topbar">
           <div class="admin-topbar__copy">
             <p class="admin-kicker">Odyssée</p>
-            <h1>Pilotage du site</h1>
+            <h1>Back office</h1>
+            <p class="admin-topbar__lede">Catalogue, comptes pro, demandes et bibliothèque visuelle dans un seul espace clair.</p>
           </div>
           <div class="admin-topbar__actions">
+            <a class="admin-button" href="/admin-inbox.html">Inbox${state.contactUnreadCount > 0 ? ` (${escapeHtml(String(state.contactUnreadCount))})` : ""}</a>
             <button type="button" class="admin-button admin-button--primary" data-admin-save>Enregistrer</button>
             <button type="button" class="admin-button" data-admin-reset>Réinitialiser</button>
           </div>
         </header>
 
         <section class="admin-overview-grid">
+          <article class="admin-overview-lead">
+            <p class="admin-kicker">Catalogue live</p>
+            <div class="admin-overview-lead__numbers">
+              <strong>${catalogStats.visibleProducts}</strong>
+              <span>produits visibles</span>
+            </div>
+            <p class="admin-overview-lead__meta">${catalogStats.parentProducts} familles produit actives dans le catalogue actuel.</p>
+          </article>
           <article class="admin-stat">
             <span>Demandes en attente</span>
             <strong>${pendingOrders}</strong>
@@ -687,14 +777,18 @@ function render() {
             <strong>${home.shortcuts.length}</strong>
           </article>
           <article class="admin-stat">
-            <span>Assets</span>
-            <strong>${ADMIN_ASSET_OPTIONS.length}</strong>
+            <span>Assets en bibliothèque</span>
+            <strong>${assetLibrary.length}</strong>
           </article>
         </section>
 
         <section id="admin-products" class="admin-section">
           <div class="admin-section__heading">
             <div><p class="admin-kicker">Produits</p><h2>Imports</h2></div>
+            <div class="admin-section__aside">
+              <span>${catalogStats.visibleProducts} références visibles</span>
+              <span>${catalogStats.parentProducts} produits parents</span>
+            </div>
           </div>
           <div class="admin-grid admin-grid--two">
             <div class="admin-surface">
@@ -780,7 +874,7 @@ function render() {
                 </div>
               </div>
               <label>Image hero
-                <select id="admin-contract-hero-image">${ADMIN_ASSET_OPTIONS.map((asset) => `<option value="${asset.src}" ${asset.src === contract.heroImage ? "selected" : ""}>${asset.label}</option>`).join("")}</select>
+                <select id="admin-contract-hero-image">${renderAssetOptions(contract.heroImage)}</select>
               </label>
               <label>Titre hero<input id="admin-contract-hero-title" type="text" value="${escapeHtml(contract.heroTitle)}" /></label>
               <label>Bouton hero<input id="admin-contract-hero-button" type="text" value="${escapeHtml(contract.heroButtonLabel)}" /></label>
@@ -798,7 +892,7 @@ function render() {
               <label>Titre bloc texte<input id="admin-contract-copy-title" type="text" value="${escapeHtml(contract.copyTitle)}" /></label>
               <label>Texte principal<textarea id="admin-contract-copy-body" rows="9">${contract.copyParagraphs.join("\n\n")}</textarea></label>
               <label>Image bloc texte
-                <select id="admin-contract-side-image">${ADMIN_ASSET_OPTIONS.map((asset) => `<option value="${asset.src}" ${asset.src === contract.sideImage ? "selected" : ""}>${asset.label}</option>`).join("")}</select>
+                <select id="admin-contract-side-image">${renderAssetOptions(contract.sideImage)}</select>
               </label>
             </div>
           </div>
@@ -812,7 +906,7 @@ function render() {
             <div class="admin-surface">
               <div class="admin-preview admin-preview--showrooms"><img src="${showrooms.heroImage}" alt="Showrooms" /></div>
               <label>Image showrooms
-                <select id="admin-showrooms-image">${ADMIN_ASSET_OPTIONS.map((asset) => `<option value="${asset.src}" ${asset.src === showrooms.heroImage ? "selected" : ""}>${asset.label}</option>`).join("")}</select>
+                <select id="admin-showrooms-image">${renderAssetOptions(showrooms.heroImage)}</select>
               </label>
             </div>
             <div class="admin-surface">
@@ -827,17 +921,38 @@ function render() {
         <section id="admin-assets" class="admin-section">
           <div class="admin-section__heading">
             <div><p class="admin-kicker">Visuels</p><h2>Assets</h2></div>
+            <div class="admin-section__aside">
+              <span>${assetLibrary.length} assets disponibles</span>
+            </div>
           </div>
-          <div class="admin-assets-grid">
-            ${ADMIN_ASSET_OPTIONS.map((asset) => `
+          <div class="admin-grid admin-grid--assets">
+            <div class="admin-surface admin-surface--asset-form">
+              <div class="admin-surface__intro">
+                <h3>Ajouter un asset</h3>
+                <p>Ajoute un label et un chemin ou une URL. L’asset sera disponible immédiatement dans les sélecteurs du backoffice.</p>
+              </div>
+              <label>Nom affiché
+                <input id="admin-asset-label" type="text" value="${escapeHtml(state.assetDraftLabel)}" placeholder="Ex: Hero printemps" />
+              </label>
+              <label>Chemin ou URL
+                <input id="admin-asset-src" type="text" value="${escapeHtml(state.assetDraftSrc)}" placeholder="/custom-assets/mon-visuel.jpg" />
+              </label>
+              <div class="admin-panel__actions">
+                <button type="button" class="admin-button admin-button--primary" data-admin-add-asset>Ajouter l’asset</button>
+              </div>
+            </div>
+            <div class="admin-assets-grid">
+            ${assetLibrary.map((asset) => `
               <article class="admin-asset-card">
                 <img src="${asset.src}" alt="${escapeHtml(asset.label)}" />
                 <div>
                   <strong>${escapeHtml(asset.label)}</strong>
                   <span>${escapeHtml(asset.src)}</span>
                 </div>
+                <button type="button" class="admin-asset-card__remove" data-admin-remove-asset="${escapeHtml(asset.src)}">Supprimer</button>
               </article>
             `).join("")}
+            </div>
           </div>
         </section>
       </main>
@@ -857,6 +972,35 @@ function bindEvents() {
       if (!nextLinks.length) return;
       state.content.products.importLinks = [...new Set([...state.content.products.importLinks, ...nextLinks])];
       input.value = "";
+      saveSiteContent(state.content);
+      render();
+      return;
+    }
+
+    if (target.matches("[data-admin-add-asset]")) {
+      const label = state.assetDraftLabel.trim();
+      const src = state.assetDraftSrc.trim();
+      if (!label || !src) {
+        return;
+      }
+
+      const nextAssets = getAdminAssets().filter((asset) => asset.src !== src);
+      nextAssets.unshift({ id: buildAssetId(label, src), label, src });
+      state.content.assets = nextAssets;
+      state.assetDraftLabel = "";
+      state.assetDraftSrc = "";
+      saveSiteContent(state.content);
+      render();
+      return;
+    }
+
+    if (target.matches("[data-admin-remove-asset]")) {
+      const src = String(target.getAttribute("data-admin-remove-asset") || "").trim();
+      if (!src) {
+        return;
+      }
+
+      state.content.assets = getAdminAssets().filter((asset) => asset.src !== src);
       saveSiteContent(state.content);
       render();
       return;
@@ -1007,6 +1151,14 @@ function bindEvents() {
     }
     if (target.id === "admin-contract-copy-body" && target instanceof HTMLTextAreaElement) {
       state.content.contract.copyParagraphs = target.value.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+    }
+    if (target.id === "admin-asset-label" && target instanceof HTMLInputElement) {
+      state.assetDraftLabel = target.value;
+      return;
+    }
+    if (target.id === "admin-asset-src" && target instanceof HTMLInputElement) {
+      state.assetDraftSrc = target.value;
+      return;
     }
 
     saveSiteContent(state.content);

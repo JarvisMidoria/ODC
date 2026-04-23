@@ -58,6 +58,19 @@ db.exec(`
     UNIQUE(order_id, product_id),
     FOREIGN KEY (order_id) REFERENCES sample_orders(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS contact_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    subject TEXT NOT NULL,
+    sector TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'contact-page',
+    status TEXT NOT NULL DEFAULT 'unread',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 function hasColumn(tableName, columnName) {
