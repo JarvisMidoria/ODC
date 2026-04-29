@@ -62,8 +62,8 @@ const contractAreaNavItems = [
 ];
 
 const logo =
-  "/custom-assets/logo-odv-black.png";
-const contractAreaLogo = "/custom-assets/odyssee-contract-black.png";
+  "/custom-assets/logo-odv-black-header.png";
+const contractAreaLogo = "/custom-assets/odyssee-contract-black-header.png";
 const footerLogo = "/custom-assets/logo-odc-white.png";
 const homeVideo = "/custom-assets/odyssee-video-global-web.mp4";
 const homeCard = "/custom-assets/carte-odc.png";
