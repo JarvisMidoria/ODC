@@ -4747,6 +4747,7 @@ body.odc-home-shell {
   .odc-product-discovery {
     --odc-product-discovery-top-gap: max(5.75rem, calc(env(safe-area-inset-top) + 5rem));
     --odc-product-discovery-bottom-gap: calc(env(safe-area-inset-bottom) + 3.25rem);
+    --odc-product-discovery-shell-breathing-room: 0.9rem;
     padding:
       var(--odc-product-discovery-top-gap)
       0.75rem
@@ -4760,11 +4761,12 @@ body.odc-home-shell {
     --odc-product-media-size: 100%;
     width: 100%;
     max-width: none;
-    height: calc(100dvh - var(--odc-product-discovery-top-gap) - var(--odc-product-discovery-bottom-gap));
+    height: calc(100dvh - var(--odc-product-discovery-top-gap) - var(--odc-product-discovery-bottom-gap) - var(--odc-product-discovery-shell-breathing-room));
     min-height: 0;
-    max-height: calc(100dvh - var(--odc-product-discovery-top-gap) - var(--odc-product-discovery-bottom-gap)) !important;
+    max-height: calc(100dvh - var(--odc-product-discovery-top-gap) - var(--odc-product-discovery-bottom-gap) - var(--odc-product-discovery-shell-breathing-room)) !important;
     box-sizing: border-box;
     margin: 0 auto;
+    border-radius: 24px;
     overflow: hidden;
   }
 
@@ -4773,7 +4775,7 @@ body.odc-home-shell {
     min-height: 0;
     max-height: 100% !important;
     padding: 64px 14px calc(env(safe-area-inset-bottom) + 2.75rem);
-    border-radius: 24px;
+    border-radius: inherit;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
