@@ -264,7 +264,7 @@ body.odc-home-shell {
   content: "";
   position: absolute;
   inset: 0;
-  background: center / min(74%, 360px) no-repeat url("/custom-assets/logo-odc-white.png");
+  background: center / min(74%, 360px) no-repeat url("/custom-assets/logo-odc-white-hq.png");
   opacity: 0;
   animation: odc-home-card-fade-in 2.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity;
@@ -490,22 +490,27 @@ body.odc-home-shell {
 }
 
 .odc-home-brand img {
-  width: 112px;
+  width: auto;
+  height: 74px;
+  max-width: none;
   display: block;
+  object-fit: contain;
 }
 
 .odc-home-brand {
   display: flex;
   align-items: center;
   height: 72px;
-  overflow: visible;
+  width: 170px;
+  overflow: hidden;
 }
 
 .odc-home-brand img {
   position: relative;
-  top: 10px;
-  transform: scale(2);
-  transform-origin: center center;
+  left: -18px;
+  top: 9px;
+  transform: scale(2.07);
+  transform-origin: left center;
 }
 
 .odc-home-nav {
@@ -1305,6 +1310,7 @@ body.odc-home-shell {
   height: auto;
   opacity: 0;
   animation: odc-home-center-logo-fade 3s ease forwards;
+  image-rendering: auto;
 }
 
 .odc-contract-hero__button {

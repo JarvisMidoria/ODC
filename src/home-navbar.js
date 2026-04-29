@@ -62,76 +62,12 @@ const contractAreaNavItems = [
 ];
 
 const logo =
-  "/custom-assets/logo-odv-black-header.png";
-const contractAreaLogo = "/custom-assets/odyssee-contract-black-header.png";
+  "/custom-assets/logo-odv-black.png";
+const contractAreaLogo = "/custom-assets/odyssee-contract-black.png";
 const footerLogo = "/custom-assets/logo-odc-white.png";
 const homeVideo = "/custom-assets/odyssee-video-global-web.mp4";
 const homeCard = "/custom-assets/carte-odc.png";
 const showroomsFacade = "/custom-assets/showrooms-chatgpt-06042026-010433.png";
-const HOME_SHORTCUT_IMAGE_SIZES =
-  "(max-width: 680px) calc(100vw - 3rem), (max-width: 1080px) calc((100vw - 4.4rem) / 2), 360px";
-const HOME_SHORTCUT_IMAGE_VARIANTS = new Map([
-  [
-    "/custom-assets/sierra-cam-2.jpg",
-    {
-      src: "/custom-assets/home-cards/catalogue-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/catalogue-600.jpg 600w, /custom-assets/home-cards/catalogue-900.jpg 900w",
-      width: 900,
-      height: 1417
-    }
-  ],
-  [
-    "/custom-assets/savannah-cam-5.jpg",
-    {
-      src: "/custom-assets/home-cards/ambiances-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/ambiances-600.jpg 600w, /custom-assets/home-cards/ambiances-900.jpg 900w",
-      width: 900,
-      height: 1137
-    }
-  ],
-  [
-    "/custom-assets/contract-hotel-bed-66040964.jpg",
-    {
-      src: "/custom-assets/home-cards/contract-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/contract-600.jpg 600w, /custom-assets/home-cards/contract-900.jpg 900w",
-      width: 900,
-      height: 506
-    }
-  ],
-  [
-    "/custom-assets/savannah-cam-3.jpg",
-    {
-      src: "/custom-assets/home-cards/mood-boards-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/mood-boards-600.jpg 600w, /custom-assets/home-cards/mood-boards-900.jpg 900w",
-      width: 900,
-      height: 802
-    }
-  ],
-  [
-    "/custom-assets/chatgpt-image-2026-04-15-143127.png",
-    {
-      src: "/custom-assets/home-cards/wallpapers-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/wallpapers-600.jpg 600w, /custom-assets/home-cards/wallpapers-900.jpg 900w",
-      width: 900,
-      height: 1350
-    }
-  ],
-  [
-    "/custom-assets/press-book-2026-04-15-144532.png",
-    {
-      src: "/custom-assets/home-cards/press-book-600.jpg",
-      srcset:
-        "/custom-assets/home-cards/press-book-600.jpg 600w, /custom-assets/home-cards/press-book-900.jpg 900w",
-      width: 900,
-      height: 1597
-    }
-  ]
-]);
 const showroomAccordionItems = [
   {
     city: "Casablanca",
@@ -294,7 +230,6 @@ function primeHeaderLogo() {
   link.rel = "preload";
   link.as = "image";
   link.href = headerLogoHref;
-  link.setAttribute("fetchpriority", "high");
   link.setAttribute("data-odc-header-logo", headerLogoHref);
   head.append(link);
 }
@@ -1337,24 +1272,12 @@ function insertHomeShortcutCards() {
     <div class="odc-home-shortcuts__grid">
       ${(siteContent.home?.shortcuts || [])
         .map(
-          (item, index) => {
-            const image = getHomeShortcutImageVariant(item.image);
-            return `
+          (item) => `
             <a class="odc-home-shortcuts__card" href="${item.href}">
-              <img
-                src="${image.src}"
-                ${image.srcset ? `srcset="${image.srcset}" sizes="${HOME_SHORTCUT_IMAGE_SIZES}"` : ""}
-                alt="${escapeHtml(item.title.replaceAll("<br />", " ").replaceAll("<br/>", " ").replaceAll("<br>", " "))} Odyssée"
-                ${image.width ? `width="${image.width}"` : ""}
-                ${image.height ? `height="${image.height}"` : ""}
-                loading="eager"
-                decoding="async"
-                ${index < 3 ? 'fetchpriority="high"' : ""}
-              />
+              <img src="${item.image}" alt="${escapeHtml(item.title.replaceAll("<br />", " ").replaceAll("<br/>", " ").replaceAll("<br>", " "))} Odyssée" />
               <span>${item.title}</span>
             </a>
           `
-          }
         )
         .join("")}
     </div>
@@ -1795,53 +1718,6 @@ function escapeHtml(value) {
       default:
         return character;
     }
-  });
-}
-
-function getHomeShortcutImageVariant(imageUrl) {
-  const variant = HOME_SHORTCUT_IMAGE_VARIANTS.get(imageUrl);
-  if (variant) {
-    return variant;
-  }
-
-  return {
-    src: imageUrl,
-    srcset: "",
-    width: "",
-    height: ""
-  };
-}
-
-function primeHomeShortcutImages(shortcuts) {
-  if (!["/", "/home", "/home/"].includes(window.location.pathname) || !Array.isArray(shortcuts)) {
-    return;
-  }
-
-  const head = document.head;
-  if (!head) {
-    return;
-  }
-
-  shortcuts.slice(0, 6).forEach((item, index) => {
-    const variant = getHomeShortcutImageVariant(item?.image || "");
-    const preloadHref = variant.src || item?.image;
-    if (!preloadHref || head.querySelector(`link[data-odc-home-preload="${preloadHref}"]`)) {
-      return;
-    }
-
-    const link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "image";
-    link.href = preloadHref;
-    link.setAttribute("data-odc-home-preload", preloadHref);
-    if (variant.srcset) {
-      link.setAttribute("imagesrcset", variant.srcset);
-      link.setAttribute("imagesizes", HOME_SHORTCUT_IMAGE_SIZES);
-    }
-    if (index < 3) {
-      link.setAttribute("fetchpriority", "high");
-    }
-    head.append(link);
   });
 }
 
@@ -4607,7 +4483,6 @@ function enableLocalProductDetail() {
 }
 
 function initializeOdcSite() {
-  primeHomeShortcutImages(siteContent.home?.shortcuts || []);
   updateCartIndicators();
   updateSampleCartIndicators();
   updateFavoriteIndicators();
