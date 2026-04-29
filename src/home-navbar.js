@@ -68,6 +68,70 @@ const footerLogo = "/custom-assets/logo-odc-white.png";
 const homeVideo = "/custom-assets/odyssee-video-global-web.mp4";
 const homeCard = "/custom-assets/carte-odc.png";
 const showroomsFacade = "/custom-assets/showrooms-chatgpt-06042026-010433.png";
+const HOME_SHORTCUT_IMAGE_SIZES =
+  "(max-width: 680px) calc(100vw - 3rem), (max-width: 1080px) calc((100vw - 4.4rem) / 2), 360px";
+const HOME_SHORTCUT_IMAGE_VARIANTS = new Map([
+  [
+    "/custom-assets/sierra-cam-2.jpg",
+    {
+      src: "/custom-assets/home-cards/catalogue-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/catalogue-600.jpg 600w, /custom-assets/home-cards/catalogue-900.jpg 900w",
+      width: 900,
+      height: 1417
+    }
+  ],
+  [
+    "/custom-assets/savannah-cam-5.jpg",
+    {
+      src: "/custom-assets/home-cards/ambiances-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/ambiances-600.jpg 600w, /custom-assets/home-cards/ambiances-900.jpg 900w",
+      width: 900,
+      height: 1137
+    }
+  ],
+  [
+    "/custom-assets/contract-hotel-bed-66040964.jpg",
+    {
+      src: "/custom-assets/home-cards/contract-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/contract-600.jpg 600w, /custom-assets/home-cards/contract-900.jpg 900w",
+      width: 900,
+      height: 506
+    }
+  ],
+  [
+    "/custom-assets/savannah-cam-3.jpg",
+    {
+      src: "/custom-assets/home-cards/mood-boards-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/mood-boards-600.jpg 600w, /custom-assets/home-cards/mood-boards-900.jpg 900w",
+      width: 900,
+      height: 802
+    }
+  ],
+  [
+    "/custom-assets/chatgpt-image-2026-04-15-143127.png",
+    {
+      src: "/custom-assets/home-cards/wallpapers-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/wallpapers-600.jpg 600w, /custom-assets/home-cards/wallpapers-900.jpg 900w",
+      width: 900,
+      height: 1350
+    }
+  ],
+  [
+    "/custom-assets/press-book-2026-04-15-144532.png",
+    {
+      src: "/custom-assets/home-cards/press-book-600.jpg",
+      srcset:
+        "/custom-assets/home-cards/press-book-600.jpg 600w, /custom-assets/home-cards/press-book-900.jpg 900w",
+      width: 900,
+      height: 1597
+    }
+  ]
+]);
 const showroomAccordionItems = [
   {
     city: "Casablanca",
@@ -199,6 +263,8 @@ const partnerLogos = [
 
 const siteContent = loadSiteContent();
 
+primeHeaderLogo();
+
 const nestedCollectionPaths = new Set(
   productCollections
     .filter((collection) => collection.path !== "/produits")
@@ -211,6 +277,26 @@ function normalizeCategoryPath(pathname) {
   }
 
   return pathname;
+}
+
+function primeHeaderLogo() {
+  const head = document.head;
+  if (!head) {
+    return;
+  }
+
+  const headerLogoHref = isContractAreaPath() ? contractAreaLogo : logo;
+  if (!headerLogoHref || head.querySelector(`link[data-odc-header-logo="${headerLogoHref}"]`)) {
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "preload";
+  link.as = "image";
+  link.href = headerLogoHref;
+  link.setAttribute("fetchpriority", "high");
+  link.setAttribute("data-odc-header-logo", headerLogoHref);
+  head.append(link);
 }
 
 if (window.location.pathname !== normalizeCategoryPath(window.location.pathname)) {
@@ -324,7 +410,7 @@ if (root) {
       <header class="odc-home-header odc-contract-space-header">
         <div class="odc-home-header__inner odc-contract-space-header__inner">
           <a class="odc-home-brand odc-contract-space-brand" href="/contract/">
-            <img src="${contractAreaLogo}" alt="Odyssee Contract" />
+            <img src="${contractAreaLogo}" alt="Odyssee Contract" width="640" height="426" decoding="async" fetchpriority="high" />
           </a>
           <button class="odc-home-toggle" type="button" aria-expanded="false" aria-controls="odc-home-mobile-nav" aria-label="Ouvrir le menu">
             <span class="odc-home-toggle__label">Menu</span>
@@ -352,7 +438,7 @@ if (root) {
                 </div>
               </div>
               <a class="odc-contract-space-mobile-brand" href="/contract/" aria-label="Accueil Odyssée Contract">
-                <img src="${contractAreaLogo}" alt="Odyssee Contract" />
+                <img src="${contractAreaLogo}" alt="Odyssee Contract" width="640" height="426" decoding="async" />
               </a>
             </div>
           </nav>
@@ -364,7 +450,7 @@ if (root) {
       <header class="odc-home-header">
         <div class="odc-home-header__inner">
           <a class="odc-home-brand" href="/">
-            <img src="${logo}" alt="Logo Odyssée" />
+            <img src="${logo}" alt="Logo Odyssée" width="640" height="426" decoding="async" fetchpriority="high" />
           </a>
           <a class="odc-home-sample-cart odc-home-sample-cart--mobile" href="/echantillons.html" data-odc-sample-cart-link hidden>
             ${sampleCartIconMarkup()}
@@ -411,7 +497,7 @@ if (root) {
                 </div>
               </div>
               <a class="odc-home-mobile-brand" href="/" aria-label="Accueil Odyssée">
-                <img src="${logo}" alt="Logo Odyssée" />
+                <img src="${logo}" alt="Logo Odyssée" width="640" height="426" decoding="async" />
               </a>
             </div>
           </nav>
@@ -1251,12 +1337,24 @@ function insertHomeShortcutCards() {
     <div class="odc-home-shortcuts__grid">
       ${(siteContent.home?.shortcuts || [])
         .map(
-          (item) => `
+          (item, index) => {
+            const image = getHomeShortcutImageVariant(item.image);
+            return `
             <a class="odc-home-shortcuts__card" href="${item.href}">
-              <img src="${item.image}" alt="${escapeHtml(item.title.replaceAll("<br />", " ").replaceAll("<br/>", " ").replaceAll("<br>", " "))} Odyssée" />
+              <img
+                src="${image.src}"
+                ${image.srcset ? `srcset="${image.srcset}" sizes="${HOME_SHORTCUT_IMAGE_SIZES}"` : ""}
+                alt="${escapeHtml(item.title.replaceAll("<br />", " ").replaceAll("<br/>", " ").replaceAll("<br>", " "))} Odyssée"
+                ${image.width ? `width="${image.width}"` : ""}
+                ${image.height ? `height="${image.height}"` : ""}
+                loading="eager"
+                decoding="async"
+                ${index < 3 ? 'fetchpriority="high"' : ""}
+              />
               <span>${item.title}</span>
             </a>
           `
+          }
         )
         .join("")}
     </div>
@@ -1697,6 +1795,53 @@ function escapeHtml(value) {
       default:
         return character;
     }
+  });
+}
+
+function getHomeShortcutImageVariant(imageUrl) {
+  const variant = HOME_SHORTCUT_IMAGE_VARIANTS.get(imageUrl);
+  if (variant) {
+    return variant;
+  }
+
+  return {
+    src: imageUrl,
+    srcset: "",
+    width: "",
+    height: ""
+  };
+}
+
+function primeHomeShortcutImages(shortcuts) {
+  if (!["/", "/home", "/home/"].includes(window.location.pathname) || !Array.isArray(shortcuts)) {
+    return;
+  }
+
+  const head = document.head;
+  if (!head) {
+    return;
+  }
+
+  shortcuts.slice(0, 6).forEach((item, index) => {
+    const variant = getHomeShortcutImageVariant(item?.image || "");
+    const preloadHref = variant.src || item?.image;
+    if (!preloadHref || head.querySelector(`link[data-odc-home-preload="${preloadHref}"]`)) {
+      return;
+    }
+
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = preloadHref;
+    link.setAttribute("data-odc-home-preload", preloadHref);
+    if (variant.srcset) {
+      link.setAttribute("imagesrcset", variant.srcset);
+      link.setAttribute("imagesizes", HOME_SHORTCUT_IMAGE_SIZES);
+    }
+    if (index < 3) {
+      link.setAttribute("fetchpriority", "high");
+    }
+    head.append(link);
   });
 }
 
@@ -2922,10 +3067,15 @@ function renderCustomProductGrid(state) {
               const primaryFallback = getProductMainImage(product, colorway)?.assetUrl || "";
               const secondary = getProductCardThumbnailUrl(getProductImages(product, colorway)?.[1]);
               const secondaryFallback = getProductImages(product, colorway)?.[1]?.assetUrl || "";
+              const selectionKey = getProductSelectionKey(product, colorway);
+              const isFavorite = hasFavoriteProduct(selectionKey);
               const title = colorway?.label ? `${product.title} - ${colorway.label}` : product.title;
               const imageLoading = visibleIndex < 8 ? "eager" : "lazy";
               return `
                 <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""} ${secondary ? "has-secondary-image" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                  <button class="odc-product-card__favorite ${isFavorite ? "is-active" : ""}" type="button" aria-label="${isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}" aria-pressed="${isFavorite ? "true" : "false"}" data-odc-card-favorite="${selectionKey}">
+                    ${favoriteIconMarkup(isFavorite)}
+                  </button>
                   <button class="odc-product-card__quick-view" type="button" aria-pressed="false" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     Vue rapide
                   </button>
@@ -2987,6 +3137,30 @@ function bindProductGridFavoriteInteractions(state) {
   if (state.root.dataset.odcFavoriteClickBound === "true") {
     return;
   }
+
+  state.root.dataset.odcFavoriteClickBound = "true";
+  state.root.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const favoriteButton = target?.closest("[data-odc-card-favorite]");
+    if (!(favoriteButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const selectionKey = favoriteButton.getAttribute("data-odc-card-favorite") || "";
+    if (!selectionKey || favoriteButton.disabled) {
+      return;
+    }
+
+    favoriteButton.disabled = true;
+    toggleFavoriteProduct(selectionKey)
+      .catch(() => {})
+      .finally(() => {
+        favoriteButton.disabled = false;
+      });
+  });
 }
 
 function enableProductTypeFilter(state) {
@@ -4433,6 +4607,7 @@ function enableLocalProductDetail() {
 }
 
 function initializeOdcSite() {
+  primeHomeShortcutImages(siteContent.home?.shortcuts || []);
   updateCartIndicators();
   updateSampleCartIndicators();
   updateFavoriteIndicators();

@@ -1,7 +1,10 @@
 .git
+.vercel
 .vite
 node_modules
 dist
 tmp
 tmp-*.png
+Odyssee
+.runlogs
 public/custom-assets/odyssee-video-global.mp4

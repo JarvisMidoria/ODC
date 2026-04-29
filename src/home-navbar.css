@@ -2519,12 +2519,15 @@ body.odc-home-shell {
 }
 
 .odc-home-shortcuts {
-  width: min(calc(100% - 3rem), 1180px);
-  margin: 2.6rem auto 0;
-  padding: 0 0 2rem;
+  width: 100%;
+  margin: 0;
+  padding: 2.6rem 0 2rem;
+  background: #f9f4ef;
 }
 
 .odc-home-shortcuts__grid {
+  width: min(calc(100% - 3rem), 1180px);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.4rem;
@@ -3356,6 +3359,40 @@ body.odc-home-shell {
   margin: 0;
 }
 
+.odc-product-grid__footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.odc-product-grid__count {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(17, 17, 17, 0.52);
+}
+
+.odc-product-grid__more {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #111;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.odc-product-grid__more:hover,
+.odc-product-grid__more:focus-visible {
+  opacity: 0.68;
+  transform: translateY(-1px);
+}
+
 .odc-product-card {
   position: relative;
 }
@@ -3567,6 +3604,11 @@ body.odc-home-shell {
     pointer-events: auto;
     transform: translate(-50%, 0);
     bottom: 66px;
+  }
+
+  .odc-product-grid__footer {
+    flex-direction: column;
+    gap: 0.45rem;
   }
 }
 
