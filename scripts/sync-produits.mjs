@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { optimizeProductPageHtml } from "./optimize-product-page-html.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -21,13 +22,17 @@ function injectSharedNavbar(html) {
   return output;
 }
 
+function prepareProductHtml(html) {
+  return optimizeProductPageHtml(injectSharedNavbar(html));
+}
+
 const response = await fetch(productsUrl, { redirect: "follow" });
 
 if (!response.ok) {
   throw new Error(`Unable to fetch ${productsUrl}: ${response.status}`);
 }
 
-const productsHtml = injectSharedNavbar(await response.text());
+const productsHtml = prepareProductHtml(await response.text());
 
 await writeFile(resolve(root, "produits.html"), productsHtml);
 await mkdir(resolve(root, "produits"), { recursive: true });
@@ -54,7 +59,7 @@ for (const route of productRoutes) {
     throw new Error(`Unable to fetch https://www.odyssee.ma${route}: ${pageResponse.status}`);
   }
 
-  const html = injectSharedNavbar(await pageResponse.text());
+  const html = prepareProductHtml(await pageResponse.text());
   const filePath = resolve(root, route.slice(1), "index.html");
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, html);

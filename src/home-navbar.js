@@ -75,10 +75,10 @@ const showroomAccordionItems = [
     phoneLabel: "05 22 612 612",
     phoneHref: "tel:+212522612612",
     email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=1%20Avenue%20Dr%20Mohamed%20Sijelmassi%20Casablanca%20Morocco",
-    mapEmbed: "https://www.google.com/maps?q=1%20Avenue%20Dr%20Mohamed%20Sijelmassi%20Casablanca%20Morocco&z=15&output=embed",
-    wazeHref: "https://waze.com/ul?q=1%20Avenue%20Dr%20Mohamed%20Sijelmassi%20Casablanca%20Morocco&navigate=yes",
-    appleHref: "https://maps.apple.com/?q=1%20Avenue%20Dr%20Mohamed%20Sijelmassi%20Casablanca%20Morocco"
+    mapHref: "https://maps.google.com/?q=33.592222,-7.641667",
+    mapEmbed: "https://www.google.com/maps?q=33.592222,-7.641667&z=17&output=embed",
+    wazeHref: "https://waze.com/ul?ll=33.592222,-7.641667&navigate=yes",
+    appleHref: "https://maps.apple.com/?ll=33.592222,-7.641667&q=1%20Avenue%20du%20Phare%20R%C3%A9sidence%20Isma%C3%AFlia%20Casablanca%20Morocco"
   },
   {
     city: "Rabat",
@@ -86,10 +86,10 @@ const showroomAccordionItems = [
     phoneLabel: "05 22 612 612",
     phoneHref: "tel:+212522612612",
     email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco",
-    mapEmbed: "https://www.google.com/maps?q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco&z=15&output=embed",
-    wazeHref: "https://waze.com/ul?q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco&navigate=yes",
-    appleHref: "https://maps.apple.com/?q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco"
+    mapHref: "https://maps.google.com/?q=33.9913771,-6.8488065",
+    mapEmbed: "https://www.google.com/maps?q=33.9913771,-6.8488065&z=17&output=embed",
+    wazeHref: "https://waze.com/ul?ll=33.9913771,-6.8488065&navigate=yes",
+    appleHref: "https://maps.apple.com/?ll=33.9913771,-6.8488065&q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco"
   },
   {
     city: "Tanger",
@@ -97,10 +97,10 @@ const showroomAccordionItems = [
     phoneLabel: "05 22 612 612",
     phoneHref: "tel:+212522612612",
     email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=5%20Rue%20Ibnou%20Zaidoune%20Tanger%20Morocco",
-    mapEmbed: "https://www.google.com/maps?q=5%20Rue%20Ibnou%20Zaidoune%20Tanger%20Morocco&z=15&output=embed",
-    wazeHref: "https://waze.com/ul?q=5%20Rue%20Ibnou%20Zaidoune%20Tanger%20Morocco&navigate=yes",
-    appleHref: "https://maps.apple.com/?q=5%20Rue%20Ibnou%20Zaidoune%20Tanger%20Morocco"
+    mapHref: "https://maps.google.com/?q=35.7833128,-5.8235286",
+    mapEmbed: "https://www.google.com/maps?q=35.7833128,-5.8235286&z=17&output=embed",
+    wazeHref: "https://waze.com/ul?ll=35.7833128,-5.8235286&navigate=yes",
+    appleHref: "https://maps.apple.com/?ll=35.7833128,-5.8235286&q=5-6%20angle%20Rue%20Ibnou%20Zaidoune%20et%20rue%20Kortoba%20Tanger%20Morocco"
   }
 ];
 
@@ -455,6 +455,8 @@ if (root) {
       setMobileMenuOpen(false);
     }
   });
+
+  bindProductsNavWarmup();
 }
 
 function ensureSharedContactModal() {
@@ -1496,11 +1498,13 @@ function replaceHomeHeroWithVideo() {
   const section = document.querySelector('section[data-section-id="677ec64145753e46d6e80bb9"]');
   const page = document.querySelector("#page");
 
-  if (!section || !page) {
+  if (!page) {
     return;
   }
 
-  section.style.display = "none";
+  if (section instanceof HTMLElement) {
+    section.style.display = "none";
+  }
 
   let hero = page.querySelector(".odc-home-hero-local");
   if (!hero) {
@@ -1513,6 +1517,20 @@ function replaceHomeHeroWithVideo() {
   if (!video || !soundToggle) {
     return;
   }
+
+  const primeVideoSource = () => {
+    if (video.dataset.odcHeroVideoPrimed === "true") {
+      return;
+    }
+
+    const source = video.querySelector("source[data-src]");
+    if (source && !source.src) {
+      source.src = source.dataset.src;
+      video.load();
+    }
+
+    video.dataset.odcHeroVideoPrimed = "true";
+  };
 
   soundToggle.setAttribute("aria-label", "Activer le son");
   soundToggle.setAttribute("aria-pressed", "false");
@@ -1536,6 +1554,8 @@ function replaceHomeHeroWithVideo() {
   }
 
   syncSoundState();
+
+  primeVideoSource();
 
   if (video.paused) {
     const playPromise = video.play();
@@ -2370,6 +2390,120 @@ function getProductColorwayPreviewImage(colorway) {
   return colorway?.mainImage || colorway?.images?.[0] || null;
 }
 
+function getCatalogThumbnailUrl(assetUrl, size = "768x768") {
+  if (!assetUrl || typeof assetUrl !== "string") {
+    return "";
+  }
+
+  const [basePart, hashPart = ""] = assetUrl.split("#");
+  const [pathPart, queryPart = ""] = basePart.split("?");
+  const match = pathPart.match(/\.(avif|webp|png|jpe?g)$/i);
+
+  if (!match || !/\/wp-content\/uploads\//i.test(pathPart)) {
+    return assetUrl;
+  }
+
+  if (new RegExp(`-${size}\\.${match[1]}$`, "i").test(pathPart)) {
+    return assetUrl;
+  }
+
+  const nextPath = pathPart.replace(new RegExp(`\\.${match[1]}$`, "i"), `-${size}.${match[1]}`);
+  const nextQuery = queryPart ? `?${queryPart}` : "";
+  const nextHash = hashPart ? `#${hashPart}` : "";
+
+  return `${nextPath}${nextQuery}${nextHash}`;
+}
+
+function getProductCardThumbnailUrl(image, size = "768x768") {
+  return getCatalogThumbnailUrl(image?.assetUrl || "", size);
+}
+
+function isHomePath(pathname = window.location.pathname) {
+  return pathname === "/" || pathname === "/index.html" || pathname === "/home/" || pathname === "/home/index.html";
+}
+
+const productGridPrefetchCache = new Set();
+let productListingWarmupStarted = false;
+let productListingWarmupBoosted = false;
+
+function prefetchImageAsset(src) {
+  if (!src || productGridPrefetchCache.has(src)) {
+    return;
+  }
+
+  productGridPrefetchCache.add(src);
+  const image = new Image();
+  image.decoding = "async";
+  image.src = src;
+}
+
+function getProductGridWarmupEntries(limit = 12) {
+  return productCatalogItems
+    .flatMap((product) => {
+      const colorways = getProductColorways(product);
+      return (colorways.length ? colorways : [null]).map((colorway) => ({
+        primary: getProductCardThumbnailUrl(getProductMainImage(product, colorway)),
+        hover: getProductCardThumbnailUrl(getProductImages(product, colorway)?.[1])
+      }));
+    })
+    .slice(0, limit);
+}
+
+function warmProductListingAssets(limit = 12) {
+  getProductGridWarmupEntries(limit).forEach(({ primary }) => {
+    prefetchImageAsset(primary);
+  });
+}
+
+function prefetchDocumentAsset(href) {
+  if (!href || document.head.querySelector(`link[rel="prefetch"][href="${href}"]`)) {
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "prefetch";
+  link.as = "document";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function warmProductsListingFromHome({ boosted = false } = {}) {
+  if (!isHomePath()) {
+    return;
+  }
+
+  if (!productListingWarmupStarted) {
+    productListingWarmupStarted = true;
+    prefetchDocumentAsset("/produits");
+    warmProductListingAssets(12);
+  }
+
+  if (boosted && !productListingWarmupBoosted) {
+    productListingWarmupBoosted = true;
+    prefetchDocumentAsset("/produits/");
+    warmProductListingAssets(32);
+  }
+}
+
+function bindProductsNavWarmup() {
+  if (!isHomePath()) {
+    return;
+  }
+
+  const scheduleWarmup = window.requestIdleCallback
+    ? (callback) => window.requestIdleCallback(callback, { timeout: 1800 })
+    : (callback) => window.setTimeout(callback, 900);
+
+  scheduleWarmup(() => warmProductsListingFromHome());
+
+  document.querySelectorAll('a[href="/produits"]').forEach((link) => {
+    const boost = () => warmProductsListingFromHome({ boosted: true });
+    link.addEventListener("pointerenter", boost, { passive: true });
+    link.addEventListener("focus", boost, { passive: true });
+    link.addEventListener("touchstart", boost, { passive: true, once: true });
+  });
+}
+
 function getProductResolvedDescription(product, colorway = null) {
   const segments = [];
 
@@ -2764,28 +2898,45 @@ function renderCustomProductGrid(state) {
     return null;
   }
 
+  const flattenedItems = state.filteredItems.flatMap((product) => {
+    const colorways = getProductColorways(product);
+    const sourceIndex = state.items.findIndex((item) => item.id === product.id);
+    const entries = colorways.length ? colorways : [null];
+
+    return entries.map((colorway, colorwayIndex) => ({
+      product,
+      colorway,
+      colorwayIndex,
+      sourceIndex
+    }));
+  });
+  const totalVisibleCount = flattenedItems.length;
+  const visibleItems = flattenedItems;
+
   layout.innerHTML = `
     <div class="odc-product-grid">
-      ${state.filteredItems.length
-        ? state.filteredItems
-          .flatMap((product) => {
-            const colorways = getProductColorways(product);
-            const sourceIndex = state.items.findIndex((item) => item.id === product.id);
-            const entries = colorways.length ? colorways : [null];
-
-            return entries.map((colorway, colorwayIndex) => {
-              const primary = getProductMainImage(product, colorway)?.assetUrl || "";
-              const hover = getProductImages(product, colorway)?.[1]?.assetUrl || primary;
+      ${visibleItems.length
+        ? visibleItems
+          .map(({ product, colorway, colorwayIndex, sourceIndex }, visibleIndex) => {
+              const primary = getProductCardThumbnailUrl(getProductMainImage(product, colorway));
+              const primaryFallback = getProductMainImage(product, colorway)?.assetUrl || "";
+              const hover = getProductCardThumbnailUrl(getProductImages(product, colorway)?.[1]);
+              const hoverFallback = getProductImages(product, colorway)?.[1]?.assetUrl || "";
               const title = colorway?.label ? `${product.title} - ${colorway.label}` : product.title;
+              const imageLoading = visibleIndex < 8 ? "eager" : "lazy";
               return `
-                <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""} ${hover ? "has-hover-image" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                   <button class="odc-product-card__quick-view" type="button" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     Quick View
                   </button>
                   <button class="odc-product-card__open" type="button" aria-label="Voir ${title}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     <div class="odc-product-card__media">
-                      <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" />
-                      <img class="odc-product-card__image odc-product-card__image--hover" src="${hover}" alt="" loading="lazy" decoding="async" />
+                      <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" data-fallback-src="${escapeHtml(primaryFallback)}" alt="${escapeHtml(title)}" loading="${imageLoading}" decoding="async" ${visibleIndex < 8 ? 'fetchpriority="high"' : ""} />
+                      ${
+                        hover
+                          ? `<img class="odc-product-card__image odc-product-card__image--hover" data-hover-src="${hover}" data-fallback-src="${escapeHtml(hoverFallback)}" alt="" decoding="async" />`
+                          : ""
+                      }
                     </div>
                     <div class="odc-product-card__meta">
                       <div class="odc-product-card__copy">
@@ -2800,7 +2951,6 @@ function renderCustomProductGrid(state) {
                   </button>
                 </article>
               `;
-            });
           })
           .join("")
         : `
@@ -2809,6 +2959,15 @@ function renderCustomProductGrid(state) {
           </div>
         `}
     </div>
+    ${
+      totalVisibleCount
+        ? `
+          <div class="odc-product-grid__footer">
+            <p class="odc-product-grid__count">${totalVisibleCount} produit${totalVisibleCount > 1 ? "s" : ""} affiché${totalVisibleCount > 1 ? "s" : ""}</p>
+          </div>
+        `
+        : ""
+    }
   `;
 
   return layout;
@@ -2836,6 +2995,7 @@ function enableProductTypeFilter(state) {
   if (!navAndFilters) {
     state.renderProductGrid = () => renderCustomProductGrid(state);
     state.renderProductGrid();
+    ensureProductGridImageFallback(state);
     bindProductGridFavoriteInteractions(state);
     return;
   }
@@ -2877,6 +3037,7 @@ function enableProductTypeFilter(state) {
   state.renderProductGrid = render;
 
   render();
+  ensureProductGridImageFallback(state);
   bindProductGridFavoriteInteractions(state);
 
   if (navAndFilters.dataset.odcBrandFilterViewportBound !== "true") {
@@ -2892,12 +3053,29 @@ function enableProductTypeFilter(state) {
     });
   }
 
+  if (state.root.dataset.odcProductGridHoverBound !== "true") {
+    state.root.dataset.odcProductGridHoverBound = "true";
+    state.root.addEventListener("pointerenter", (event) => {
+      const card = event.target instanceof Element ? event.target.closest(".odc-product-card") : null;
+      if (card) {
+        primeProductCardHoverImage(card);
+      }
+    }, true);
+
+    state.root.addEventListener("focusin", (event) => {
+      const card = event.target instanceof Element ? event.target.closest(".odc-product-card") : null;
+      if (card) {
+        primeProductCardHoverImage(card);
+      }
+    });
+  }
+
   if (navAndFilters.dataset.odcBrandFilterBound === "true") {
     return;
   }
 
   navAndFilters.dataset.odcBrandFilterBound = "true";
-  navAndFilters.addEventListener("click", (event) => {
+  state.root.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target.closest("[data-odc-type-filter]") : null;
     const subtypeTarget = event.target instanceof Element ? event.target.closest("[data-odc-subtype-filter]") : null;
 
@@ -2934,6 +3112,54 @@ function getProductCardImage(trigger) {
     card.querySelector(".grid-image-cover") ||
     card.querySelector(".product-list-item-image img") ||
     null
+  );
+}
+
+function primeProductCardHoverImage(card) {
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  const hoverImage = card.querySelector(".odc-product-card__image--hover[data-hover-src]");
+  if (!(hoverImage instanceof HTMLImageElement)) {
+    return;
+  }
+
+  if (hoverImage.src) {
+    return;
+  }
+
+  const hoverSrc = hoverImage.dataset.hoverSrc;
+  if (!hoverSrc) {
+    return;
+  }
+
+  hoverImage.src = hoverSrc;
+}
+
+function ensureProductGridImageFallback(state) {
+  if (state.root.dataset.odcProductGridImageFallbackBound === "true") {
+    return;
+  }
+
+  state.root.dataset.odcProductGridImageFallbackBound = "true";
+  state.root.addEventListener(
+    "error",
+    (event) => {
+      const image = event.target;
+      if (!(image instanceof HTMLImageElement)) {
+        return;
+      }
+
+      const fallbackSrc = image.dataset.fallbackSrc;
+      if (!fallbackSrc || image.dataset.fallbackApplied === "true" || image.src === fallbackSrc) {
+        return;
+      }
+
+      image.dataset.fallbackApplied = "true";
+      image.src = fallbackSrc;
+    },
+    true
   );
 }
 
