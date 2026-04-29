@@ -3434,17 +3434,15 @@ body.odc-home-shell {
   transition: opacity 220ms ease, transform 320ms ease;
 }
 
-.odc-product-card__image--hover {
+.odc-product-card__image--secondary {
   opacity: 0;
 }
 
-.odc-product-card:hover .odc-product-card__image--hover,
-.odc-product-card:focus-within .odc-product-card__image--hover {
+.odc-product-card.is-showing-secondary-image .odc-product-card__image--secondary {
   opacity: 1;
 }
 
-.odc-product-card:hover .odc-product-card__image--primary,
-.odc-product-card:focus-within .odc-product-card__image--primary {
+.odc-product-card.is-showing-secondary-image .odc-product-card__image--primary {
   opacity: 0;
 }
 

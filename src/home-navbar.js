@@ -2920,21 +2920,21 @@ function renderCustomProductGrid(state) {
           .map(({ product, colorway, colorwayIndex, sourceIndex }, visibleIndex) => {
               const primary = getProductCardThumbnailUrl(getProductMainImage(product, colorway));
               const primaryFallback = getProductMainImage(product, colorway)?.assetUrl || "";
-              const hover = getProductCardThumbnailUrl(getProductImages(product, colorway)?.[1]);
-              const hoverFallback = getProductImages(product, colorway)?.[1]?.assetUrl || "";
+              const secondary = getProductCardThumbnailUrl(getProductImages(product, colorway)?.[1]);
+              const secondaryFallback = getProductImages(product, colorway)?.[1]?.assetUrl || "";
               const title = colorway?.label ? `${product.title} - ${colorway.label}` : product.title;
               const imageLoading = visibleIndex < 8 ? "eager" : "lazy";
               return `
-                <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""} ${hover ? "has-hover-image" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
-                  <button class="odc-product-card__quick-view" type="button" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
-                    Quick View
+                <article class="odc-product-card ${product.onSale ? "is-on-sale" : ""} ${secondary ? "has-secondary-image" : ""}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                  <button class="odc-product-card__quick-view" type="button" aria-pressed="false" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                    Vue rapide
                   </button>
                   <button class="odc-product-card__open" type="button" aria-label="Voir ${title}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     <div class="odc-product-card__media">
                       <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" data-fallback-src="${escapeHtml(primaryFallback)}" alt="${escapeHtml(title)}" loading="${imageLoading}" decoding="async" ${visibleIndex < 8 ? 'fetchpriority="high"' : ""} />
                       ${
-                        hover
-                          ? `<img class="odc-product-card__image odc-product-card__image--hover" data-hover-src="${hover}" data-fallback-src="${escapeHtml(hoverFallback)}" alt="" decoding="async" />`
+                        secondary
+                          ? `<img class="odc-product-card__image odc-product-card__image--secondary" data-secondary-src="${secondary}" data-fallback-src="${escapeHtml(secondaryFallback)}" alt="" decoding="async" />`
                           : ""
                       }
                     </div>
@@ -3053,23 +3053,6 @@ function enableProductTypeFilter(state) {
     });
   }
 
-  if (state.root.dataset.odcProductGridHoverBound !== "true") {
-    state.root.dataset.odcProductGridHoverBound = "true";
-    state.root.addEventListener("pointerenter", (event) => {
-      const card = event.target instanceof Element ? event.target.closest(".odc-product-card") : null;
-      if (card) {
-        primeProductCardHoverImage(card);
-      }
-    }, true);
-
-    state.root.addEventListener("focusin", (event) => {
-      const card = event.target instanceof Element ? event.target.closest(".odc-product-card") : null;
-      if (card) {
-        primeProductCardHoverImage(card);
-      }
-    });
-  }
-
   if (navAndFilters.dataset.odcBrandFilterBound === "true") {
     return;
   }
@@ -3115,26 +3098,26 @@ function getProductCardImage(trigger) {
   );
 }
 
-function primeProductCardHoverImage(card) {
-  if (!(card instanceof HTMLElement)) {
+function toggleProductCardSecondaryImage(card) {
+  if (!(card instanceof HTMLElement) || !card.classList.contains("has-secondary-image")) {
     return;
   }
 
-  const hoverImage = card.querySelector(".odc-product-card__image--hover[data-hover-src]");
-  if (!(hoverImage instanceof HTMLImageElement)) {
-    return;
+  const secondaryImage = card.querySelector(".odc-product-card__image--secondary[data-secondary-src]");
+  if (secondaryImage instanceof HTMLImageElement && !secondaryImage.src) {
+    const secondarySrc = secondaryImage.dataset.secondarySrc;
+    if (secondarySrc) {
+      secondaryImage.src = secondarySrc;
+    }
   }
 
-  if (hoverImage.src) {
-    return;
+  const nextExpanded = !card.classList.contains("is-showing-secondary-image");
+  card.classList.toggle("is-showing-secondary-image", nextExpanded);
+  const quickViewButton = card.querySelector(".odc-product-card__quick-view");
+  if (quickViewButton instanceof HTMLButtonElement) {
+    quickViewButton.setAttribute("aria-pressed", nextExpanded ? "true" : "false");
+    quickViewButton.textContent = nextExpanded ? "Vue globale" : "Vue rapide";
   }
-
-  const hoverSrc = hoverImage.dataset.hoverSrc;
-  if (!hoverSrc) {
-    return;
-  }
-
-  hoverImage.src = hoverSrc;
 }
 
 function ensureProductGridImageFallback(state) {
@@ -3631,7 +3614,15 @@ async function enableProductDiscoveryOverlay() {
       return;
     }
 
-    const opener = target.closest(".odc-product-card__open, .odc-product-card__quick-view");
+    const quickViewButton = target.closest(".odc-product-card__quick-view");
+    if (quickViewButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleProductCardSecondaryImage(quickViewButton.closest(".odc-product-card"));
+      return;
+    }
+
+    const opener = target.closest(".odc-product-card__open");
     if (!opener) {
       return;
     }
