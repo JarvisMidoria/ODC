@@ -966,7 +966,7 @@ function enableProfessionalAuth() {
         setFeedback(
           registerFeedback,
           payload.verificationEmailSent
-            ? "Compte créé. Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter."
+            ? "Compte créé. Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter. Pensez aussi à regarder vos spams ou courriers indésirables."
             : "Compte créé. L’email de confirmation n’a pas pu être envoyé, contactez-nous pour activer votre compte."
         );
       } catch (error) {

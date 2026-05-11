@@ -416,6 +416,21 @@ async function sendEmailVerificationEmail({ req, user, token }) {
   const apiOrigin = getRequestOrigin(req);
   const verificationUrl = `${apiOrigin}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
   const displayName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "bonjour";
+  const textContent = [
+    `Bonjour ${displayName},`,
+    "",
+    "Merci d'avoir créé votre accès professionnel Odyssée.",
+    "Confirmez votre adresse email pour consulter les fiches produits, accéder aux coloris et enregistrer vos favoris.",
+    "",
+    `Confirmer mon email : ${verificationUrl}`,
+    "",
+    "Ce lien est valable pendant 24 heures.",
+    "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.",
+    "",
+    "Odyssée",
+    "https://www.odyssee.ma",
+    "contact@odyssee.ma"
+  ].join("\n");
   const htmlContent = `
     <div style="margin:0;padding:32px 0;background:#f3ede4;font-family:Arial,'Helvetica Neue',sans-serif;color:#181411;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -430,14 +445,17 @@ async function sendEmailVerificationEmail({ req, user, token }) {
               </tr>
               <tr>
                 <td style="padding:30px 32px 10px;">
-                  <h1 style="margin:0 0 12px;font-size:28px;line-height:1.12;font-weight:500;">Confirmez votre adresse email</h1>
-                  <p style="margin:0;color:#6f665f;font-size:15px;line-height:1.65;">Bonjour ${escapeHtml(displayName)}, confirmez votre adresse email pour activer votre compte Odyssée et enregistrer vos produits favoris.</p>
+                  <h1 style="margin:0 0 12px;font-size:28px;line-height:1.12;font-weight:500;">Confirmez votre accès professionnel Odyssée</h1>
+                  <p style="margin:0;color:#6f665f;font-size:15px;line-height:1.65;">Bonjour ${escapeHtml(displayName)}, merci d’avoir créé votre accès professionnel. Confirmez votre adresse email pour consulter les fiches produits, accéder aux coloris et enregistrer vos favoris.</p>
                 </td>
               </tr>
               <tr>
                 <td style="padding:18px 32px 28px;">
                   <a href="${escapeHtml(verificationUrl)}" style="display:inline-block;background:#181411;color:#fff8ef;text-decoration:none;padding:14px 22px;font-size:15px;">Confirmer mon email</a>
-                  <p style="margin:18px 0 0;color:#8a7f75;font-size:13px;line-height:1.55;">Ce lien est valable pendant 24 heures. Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer cet email.</p>
+                  <p style="margin:18px 0 0;color:#8a7f75;font-size:13px;line-height:1.55;">Ce lien est valable pendant 24 heures. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
+                  <p style="margin:8px 0 0;color:#6f665f;font-size:12px;line-height:1.55;word-break:break-all;">${escapeHtml(verificationUrl)}</p>
+                  <p style="margin:18px 0 0;color:#8a7f75;font-size:13px;line-height:1.55;">Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer cet email.</p>
+                  <p style="margin:24px 0 0;color:#181411;font-size:13px;line-height:1.6;">Odyssée<br><a href="https://www.odyssee.ma" style="color:#181411;">www.odyssee.ma</a><br><a href="mailto:contact@odyssee.ma" style="color:#181411;">contact@odyssee.ma</a></p>
                 </td>
               </tr>
             </table>
@@ -464,8 +482,13 @@ async function sendEmailVerificationEmail({ req, user, token }) {
           name: displayName
         }
       ],
-      subject: "Confirmez votre compte Odyssée",
-      htmlContent
+      replyTo: {
+        email: "contact@odyssee.ma",
+        name: "Odyssée"
+      },
+      subject: "Confirmez votre accès professionnel Odyssée",
+      htmlContent,
+      textContent
     })
   });
 
