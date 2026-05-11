@@ -767,12 +767,12 @@ function enableProfessionalAuth() {
     }
 
     if (name === "register") {
-      title.textContent = "Sign Up";
+      title.textContent = "Créer un compte";
       return;
     }
 
     if (name === "login") {
-      title.textContent = "Log In";
+      title.textContent = "Se connecter";
     }
   };
 
