@@ -1,1192 +1,1055 @@
-import {
-  ADMIN_ASSET_OPTIONS,
-  DEFAULT_SITE_CONTENT,
-  loadSiteContent,
-  resetSiteContent,
-  saveSiteContent
-} from "./site-content.js";
 import { apiFetch } from "./api-client.js";
-import { getProductCatalogItemById, getProductColorwayById, productCatalogItems } from "./product-catalog-data.js";
-import { parseProductSelectionKey } from "./product-selection.js";
+import { productCatalogItems } from "./product-catalog-data.js";
+
+const app = document.querySelector("#admin-app");
 
 const state = {
-  content: loadSiteContent(),
   accessLoaded: false,
   accessAllowed: false,
   accessError: "",
-  professionals: [],
-  professionalsLoaded: false,
-  professionalsError: "",
-  professionalsUpdating: [],
-  professionalsStatusUpdating: [],
-  sampleOrders: [],
-  sampleOrdersLoaded: false,
-  sampleOrdersError: "",
-  contactUnreadCount: 0,
-  sampleOrdersUpdating: [],
-  sampleOrderDraftNotes: {},
-  sampleOrdersSearch: "",
-  sampleOrdersDate: "",
-  sampleOrdersSort: "date-desc",
-  sampleOrdersPage: 1,
-  sampleOrdersPageSize: 10,
-  assetDraftLabel: "",
-  assetDraftSrc: ""
+  loginUsername: "Admin",
+  loginPassword: "",
+  loginBusy: false,
+  activeView: getActiveViewFromHash(),
+  productsLoaded: false,
+  productStatuses: new Map(),
+  colorwayStatuses: new Map(),
+  expandedProducts: new Set(),
+  productUpdating: new Set(),
+  colorwayUpdating: new Set(),
+  productSearch: "",
+  accountsLoaded: false,
+  accounts: [],
+  accountsSearch: "",
+  accountsDeleting: new Set(),
+  importJobsLoaded: false,
+  importJobs: [],
+  importUrl: "",
+  importBusy: false,
+  adminUsersLoaded: false,
+  adminUsers: [],
+  newAdminUsername: "",
+  newAdminPassword: "",
+  createAdminBusy: false,
+  notice: ""
 };
 
-const catalogStats = {
-  parentProducts: productCatalogItems.length,
-  visibleProducts: productCatalogItems.reduce((count, item) => count + (Array.isArray(item.colorways) && item.colorways.length ? item.colorways.length : 1), 0)
-};
+const views = [
+  { id: "products", label: "Produits" },
+  { id: "accounts", label: "Comptes client" },
+  { id: "import", label: "Import" },
+  { id: "users", label: "Utilisateurs" }
+];
+
+function getActiveViewFromHash() {
+  const value = window.location.hash.replace(/^#/, "");
+  return ["products", "accounts", "import", "users"].includes(value) ? value : "products";
+}
 
 function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#39;";
-      default: return character;
-    }
-  });
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-function shortcutCardEditor(card, index) {
-  return `
-    <article class="admin-editor-card">
-      <div class="admin-editor-card__media">
-        <img src="${card.image}" alt="${escapeHtml(card.title.replace(/<br\s*\/?>/gi, " "))}" />
-      </div>
-      <div class="admin-editor-card__fields">
-        <label>Titre
-          <textarea rows="2" data-admin-shortcut-title="${index}">${card.title.replace(/<br\s*\/?>/gi, "\n")}</textarea>
-        </label>
-        <label>Lien
-          <input type="text" value="${card.href}" data-admin-shortcut-href="${index}" />
-        </label>
-        <label>Visuel
-          <select data-admin-shortcut-image="${index}">
-            ${renderAssetOptions(card.image)}
-          </select>
-        </label>
-      </div>
-    </article>
-  `;
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
 }
 
-function getAdminAssets() {
-  if (Array.isArray(state.content.assets)) {
-    return state.content.assets;
-  }
-
-  return ADMIN_ASSET_OPTIONS;
-}
-
-function ensureAssetOption(selectedSrc) {
-  const normalizedSrc = String(selectedSrc || "").trim();
-  const assets = getAdminAssets();
-  if (!normalizedSrc) {
-    return assets;
-  }
-
-  const hasMatch = assets.some((asset) => asset.src === normalizedSrc);
-  if (hasMatch) {
-    return assets;
-  }
-
-  return [
-    {
-      id: `orphan-${normalizedSrc}`,
-      label: "Asset actuel",
-      src: normalizedSrc
-    },
-    ...assets
-  ];
-}
-
-function renderAssetOptions(selectedSrc = "") {
-  return ensureAssetOption(selectedSrc).map((asset) => `
-    <option value="${asset.src}" ${asset.src === selectedSrc ? "selected" : ""}>${escapeHtml(asset.label)}</option>
-  `).join("");
-}
-
-function slugifyAssetId(value) {
+function normalizeSearch(value) {
   return String(value || "")
-    .trim()
-    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .toLowerCase()
+    .trim();
 }
 
-function buildAssetId(label, src) {
-  return slugifyAssetId(label) || slugifyAssetId(src) || `asset-${Date.now()}`;
+function getProductType(product) {
+  const tags = (product?.tags || []).map((tag) => String(tag).toLowerCase());
+  if (tags.some((tag) => tag.includes("wallpaper") || tag.includes("papier"))) {
+    return "Papier peint";
+  }
+  return "Tissu";
 }
 
-function renderProductQueue() {
-  const items = state.content.products.importLinks;
-  return items.length
-    ? items.map((item, index) => `
-        <li class="admin-link-list__item">
-          <span>${escapeHtml(item)}</span>
-          <button type="button" data-admin-remove-link="${index}">Retirer</button>
-        </li>
-      `).join("")
-    : `<li class="admin-link-list__empty">Aucun lien ajouté pour l’instant.</li>`;
+function getProductStatus(productId) {
+  return state.productStatuses.get(productId) || "available";
 }
 
-function renderProfessionalsTable() {
-  if (state.professionalsError) {
-    return `<div class="admin-table__empty">${escapeHtml(state.professionalsError)}</div>`;
-  }
+function getColorwayStatus(productId, colorwayId) {
+  return state.colorwayStatuses.get(`${productId}::${colorwayId}`) || getProductStatus(productId);
+}
 
-  if (!state.professionalsLoaded) {
-    return `<div class="admin-table__empty">Chargement des formulaires professionnels...</div>`;
-  }
+function getProductStatusLabel(status) {
+  return status === "unavailable" ? "Indisponible" : "Disponible";
+}
 
-  if (!state.professionals.length) {
-    return `<div class="admin-table__empty">Aucun formulaire professionnel enregistré pour l’instant.</div>`;
-  }
+function getAccountStatusLabel(status) {
+  if (status === "blocked") return "Bloqué";
+  if (status === "pending_email") return "Email non confirmé";
+  return "Actif";
+}
 
-  return `
-    <div class="admin-table-wrap">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Prénom</th>
-            <th>Téléphone</th>
-            <th>Email</th>
-            <th>Profession</th>
-            <th>Statut</th>
-            <th>Quota</th>
-            <th>Échantillons</th>
-            <th>Créé le</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${state.professionals.map((professional) => `
-            ${(() => {
-              const isUpdating = state.professionalsUpdating.includes(professional.id);
-              const isStatusUpdating = state.professionalsStatusUpdating.includes(professional.id);
-              return `
-            <tr>
-              <td>${escapeHtml(professional.lastName)}</td>
-              <td>${escapeHtml(professional.firstName)}</td>
-              <td>${escapeHtml(professional.phone)}</td>
-              <td><a href="mailto:${escapeHtml(professional.email)}">${escapeHtml(professional.email)}</a></td>
-              <td>${escapeHtml(professional.profession)}</td>
-              <td>
-                <div class="admin-account-status">
-                  <span class="admin-status-pill admin-status-pill--${escapeHtml(professional.status || "active")}">${escapeHtml(professional.status || "active")}</span>
-                  <button
-                    type="button"
-                    class="admin-status-action"
-                    data-admin-professional-status="${professional.status === "blocked" ? "active" : "blocked"}"
-                    data-admin-professional-id="${professional.id}"
-                    ${isStatusUpdating ? "disabled" : ""}
-                  >
-                    ${professional.status === "blocked" ? "Réactiver" : "Bloquer"}
-                  </button>
-                </div>
-              </td>
-              <td>
-                <div class="admin-quota-control" role="group" aria-label="Quota d'échantillons de ${escapeHtml(`${professional.firstName} ${professional.lastName}`.trim())}">
-                  <button type="button" class="admin-quota-control__button" data-admin-sample-limit-delta="-1" data-admin-user-id="${professional.id}" ${isUpdating || professional.sampleLimit <= 0 ? "disabled" : ""}>-</button>
-                  <strong>${escapeHtml(String(professional.sampleLimit))}</strong>
-                  <button type="button" class="admin-quota-control__button" data-admin-sample-limit-delta="1" data-admin-user-id="${professional.id}" ${isUpdating ? "disabled" : ""}>+</button>
-                </div>
-              </td>
-              <td>${escapeHtml(String(professional.sampleCount))}</td>
-              <td>${escapeHtml(professional.createdAt)}</td>
-            </tr>
-          `;
-            })()}
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
+function getAccountStatusClass(status) {
+  if (status === "blocked") return "blocked";
+  if (status === "pending_email") return "pending";
+  return "active";
+}
+
+function getColorwayPreviewUrl(colorway) {
+  return colorway?.mainImage?.assetUrl || colorway?.images?.[0]?.assetUrl || "";
+}
+
+function getProductColorwayCount(product) {
+  return Array.isArray(product?.colorways) && product.colorways.length ? product.colorways.length : 1;
+}
+
+function getTotalProductCount() {
+  return productCatalogItems.reduce((total, product) => total + getProductColorwayCount(product), 0);
+}
+
+function getUnavailableProductCount() {
+  return productCatalogItems.reduce((total, product) => {
+    if (getProductStatus(product.id) === "unavailable") {
+      return total + getProductColorwayCount(product);
+    }
+
+    const unavailableColorways = (product.colorways || []).filter(
+      (colorway) => getColorwayStatus(product.id, colorway.id) === "unavailable"
+    ).length;
+
+    return total + unavailableColorways;
+  }, 0);
+}
+
+function getFilteredProducts() {
+  const search = normalizeSearch(state.productSearch);
+  if (!search) return productCatalogItems;
+
+  return productCatalogItems.filter((product) => {
+    const haystack = normalizeSearch([
+      product.title,
+      product.id,
+      product.brand,
+      getProductType(product),
+      `${product.colorways?.length || 0} coloris`
+    ].join(" "));
+    return haystack.includes(search);
+  });
+}
+
+function getFilteredAccounts() {
+  const search = normalizeSearch(state.accountsSearch);
+  if (!search) return state.accounts;
+
+  return state.accounts.filter((account) => {
+    const haystack = normalizeSearch([
+      account.firstName,
+      account.lastName,
+      account.email,
+      account.phone,
+      account.profession,
+      account.status
+    ].join(" "));
+    return haystack.includes(search);
+  });
+}
+
+function renderAccessLoading() {
+  app.innerHTML = `
+    <main class="admin-access-shell">
+      <section class="admin-access-card">
+        <p class="admin-access-card__eyebrow">Back office</p>
+        <h1>Chargement</h1>
+        <p>Vérification de votre session administrateur.</p>
+      </section>
+    </main>
   `;
 }
 
-function describeSampleSelection(selectionKey) {
-  const { productId, colorwayId, selectionKey: normalizedKey } = parseProductSelectionKey(selectionKey);
-  const product = getProductCatalogItemById(productId);
-  const colorway = product ? getProductColorwayById(product, colorwayId) : null;
-
-  if (!product) {
-    return {
-      title: normalizedKey || selectionKey,
-      subtitle: ""
-    };
-  }
-
-  return {
-    title: product.title,
-    subtitle: colorway?.label ? `Coloris : ${colorway.label}` : ""
-  };
+function renderAccessDenied() {
+  app.innerHTML = `
+    <main class="admin-access-shell">
+      <form class="admin-access-card" data-admin-login-form>
+        <div class="admin-access-card__header">
+          <p class="admin-access-card__eyebrow">Accès réservé</p>
+          <div class="admin-access-card__logo" aria-label="Odyssée">
+            <img src="/custom-assets/logo-odv-black.png" alt="Odyssée">
+          </div>
+        </div>
+        <p>${escapeHtml(state.accessError || "Connectez-vous avec votre identifiant pour accéder au back office.")}</p>
+        <label>
+          Identifiant
+          <input type="text" value="${escapeHtml(state.loginUsername)}" autocomplete="username" data-admin-login-username required>
+        </label>
+        <label>
+          Mot de passe
+          <input type="password" value="${escapeHtml(state.loginPassword)}" autocomplete="current-password" data-admin-login-password required>
+        </label>
+        <button class="admin-button admin-button--primary" type="submit" ${state.loginBusy ? "disabled" : ""}>
+          ${state.loginBusy ? "Connexion..." : "Se connecter"}
+        </button>
+      </form>
+    </main>
+  `;
 }
 
-function getFilteredSampleOrders() {
-  const search = state.sampleOrdersSearch.trim().toLowerCase();
-  const date = state.sampleOrdersDate.trim();
-  const filteredOrders = state.sampleOrders.filter((order) => {
-    const fullName = `${order.firstName || ""} ${order.lastName || ""}`.trim().toLowerCase();
-    const submittedDate = String(order.submittedAt || order.createdAt || "").slice(0, 10);
-    const matchesSearch = !search || fullName.includes(search);
-    const matchesDate = !date || submittedDate === date;
-    return matchesSearch && matchesDate;
-  });
-
-  filteredOrders.sort((left, right) => {
-    const leftName = `${left.firstName || ""} ${left.lastName || ""}`.trim().toLowerCase();
-    const rightName = `${right.firstName || ""} ${right.lastName || ""}`.trim().toLowerCase();
-    const leftDate = new Date(left.submittedAt || left.createdAt || 0).getTime();
-    const rightDate = new Date(right.submittedAt || right.createdAt || 0).getTime();
-
-    switch (state.sampleOrdersSort) {
-      case "date-asc":
-        return leftDate - rightDate;
-      case "name-asc":
-        return leftName.localeCompare(rightName, "fr");
-      case "name-desc":
-        return rightName.localeCompare(leftName, "fr");
-      case "date-desc":
-      default:
-        return rightDate - leftDate;
-    }
-  });
-
-  return filteredOrders;
-}
-
-function getSampleOrdersPaginationMeta() {
-  const filteredOrders = getFilteredSampleOrders();
-  const totalItems = filteredOrders.length;
-  const pageSize = state.sampleOrdersPageSize;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const currentPage = Math.min(Math.max(1, state.sampleOrdersPage), totalPages);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-
-  return {
-    filteredOrders,
-    totalItems,
-    totalPages,
-    currentPage,
-    startIndex,
-    endIndex,
-    paginatedOrders: filteredOrders.slice(startIndex, endIndex)
-  };
-}
-
-function toCsvValue(value) {
-  const normalized = String(value ?? "").replace(/\r?\n/g, " ").trim();
-  return `"${normalized.replace(/"/g, "\"\"")}"`;
-}
-
-function exportSampleOrdersCsv() {
-  const { filteredOrders } = getSampleOrdersPaginationMeta();
-  if (!filteredOrders.length) {
-    window.alert("Aucune demande à exporter avec les filtres actuels.");
-    render();
-    return;
-  }
-
-  const rows = [
-    [
-      "Commande",
-      "Client",
-      "Email",
-      "Téléphone",
-      "Statut",
-      "Date de soumission",
-      "Échantillons",
-      "Notes internes"
-    ],
-    ...filteredOrders.map((order) => [
-      order.id,
-      `${order.firstName || ""} ${order.lastName || ""}`.trim(),
-      order.email || "",
-      order.phone || "",
-      order.status || "pending",
-      order.submittedAt || order.createdAt || "",
-      (order.productIds || []).map((selectionKey) => {
-        const selection = describeSampleSelection(selectionKey);
-        return selection.subtitle ? `${selection.title} (${selection.subtitle})` : selection.title;
-      }).join(" | "),
-      order.adminNotes || ""
-    ])
-  ];
-
-  const csvContent = rows
-    .map((row) => row.map((value) => toCsvValue(value)).join(","))
-    .join("\n");
-
-  const blob = new Blob([`\ufeff${csvContent}`], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  const today = new Date().toISOString().slice(0, 10);
-  link.href = url;
-  link.download = `odc-demandes-echantillons-${today}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function renderSampleOrdersTable() {
-  if (state.sampleOrdersError) {
-    return `<div class="admin-table__empty">${escapeHtml(state.sampleOrdersError)}</div>`;
-  }
-
-  if (!state.sampleOrdersLoaded) {
-    return `<div class="admin-table__empty">Chargement des demandes d’échantillons...</div>`;
-  }
-
-  if (!state.sampleOrders.length) {
-    return `<div class="admin-table__empty">Aucune demande d’échantillons enregistrée pour l’instant.</div>`;
-  }
-
-  const {
-    totalItems,
-    totalPages,
-    currentPage,
-    startIndex,
-    endIndex,
-    paginatedOrders
-  } = getSampleOrdersPaginationMeta();
-
-  if (!totalItems) {
-    return `<div class="admin-table__empty">Aucune demande ne correspond aux filtres actuels.</div>`;
-  }
-
+function renderSidebar() {
   return `
-    <div class="admin-table-meta">
-      <span>${escapeHtml(String(startIndex + 1))}-${escapeHtml(String(endIndex))} sur ${escapeHtml(String(totalItems))}</span>
-      <div class="admin-pagination" role="group" aria-label="Pagination des demandes d’échantillons">
-        <button type="button" class="admin-button" data-admin-sample-orders-page="prev" ${currentPage <= 1 ? "disabled" : ""}>Préc</button>
-        <span>Page ${escapeHtml(String(currentPage))} / ${escapeHtml(String(totalPages))}</span>
-        <button type="button" class="admin-button" data-admin-sample-orders-page="next" ${currentPage >= totalPages ? "disabled" : ""}>Suiv</button>
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar__brand">
+        <div class="admin-wordmark">ODYSSEE</div>
+        <div class="admin-sidebar__brand-meta">
+          <span>Back office</span>
+          <strong>Gestion minimale</strong>
+        </div>
       </div>
-    </div>
-    <div class="admin-table-wrap">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Commande</th>
-            <th>Client</th>
-            <th>Contact</th>
-            <th>Échantillons</th>
-            <th>Statut</th>
-            <th>Actions</th>
-            <th>Notes internes</th>
-            <th>Soumise le</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${paginatedOrders.map((order) => `
-            ${(() => {
-              const isUpdating = state.sampleOrdersUpdating.includes(order.id);
-              const noteValue = Object.prototype.hasOwnProperty.call(state.sampleOrderDraftNotes, order.id)
-                ? state.sampleOrderDraftNotes[order.id]
-                : (order.adminNotes || "");
-              return `
+      <nav class="admin-sidebar__nav" aria-label="Navigation admin">
+        ${views.map((view) => `
+          <a href="#${view.id}" class="${state.activeView === view.id ? "is-active" : ""}">
+            ${escapeHtml(view.label)}
+            ${view.id === "products" ? `<span class="admin-nav-badge">${getTotalProductCount()}</span>` : ""}
+            ${view.id === "accounts" && state.accountsLoaded ? `<span class="admin-nav-badge">${state.accounts.length}</span>` : ""}
+            ${view.id === "users" && state.adminUsersLoaded ? `<span class="admin-nav-badge">${state.adminUsers.length}</span>` : ""}
+          </a>
+        `).join("")}
+      </nav>
+      <div class="admin-sidebar__actions">
+        <button class="admin-button" type="button" data-admin-logout>Déconnexion</button>
+        <a class="admin-button" href="/" target="_blank" rel="noopener noreferrer">Voir le site</a>
+      </div>
+    </aside>
+  `;
+}
+
+function renderTopbar() {
+  return `
+    <header class="admin-topbar">
+      <div class="admin-topbar__copy">
+        <p class="admin-kicker">Odyssee admin</p>
+        <h1>${state.activeView === "products" ? "Disponibilité produits" : state.activeView === "accounts" ? "Comptes clients" : state.activeView === "users" ? "Utilisateurs admin" : "Ajouter par lien"}</h1>
+        <p class="admin-topbar__lede">
+          ${state.activeView === "products"
+            ? "Passez un produit de Disponible à Indisponible sans modifier le catalogue."
+            : state.activeView === "accounts"
+              ? "Liste propre des comptes créés, exportable en CSV."
+              : state.activeView === "users"
+                ? "Créez des accès supplémentaires pour les personnes qui doivent gérer le back office."
+                : "Déposez un lien Froca, York ou Symphony pour préparer un import produit."}
+        </p>
+      </div>
+      <div class="admin-topbar__actions">
+        <button class="admin-button" type="button" data-admin-refresh>Rafraîchir</button>
+      </div>
+    </header>
+  `;
+}
+
+function renderOverview() {
+  const unavailableCount = getUnavailableProductCount();
+  return `
+    <section class="admin-overview-grid">
+      <div class="admin-overview-lead">
+        <span>Back office simplifié</span>
+        <strong>3 actions utiles, rien de plus.</strong>
+      </div>
+      <div class="admin-stat"><span>Produits</span><strong>${getTotalProductCount()}</strong></div>
+      <div class="admin-stat"><span>Indisponibles</span><strong>${unavailableCount}</strong></div>
+      <div class="admin-stat"><span>Comptes client</span><strong>${state.accountsLoaded ? state.accounts.length : "—"}</strong></div>
+      <div class="admin-stat"><span>Comptes Odyssée</span><strong>${state.adminUsersLoaded ? state.adminUsers.length : "—"}</strong></div>
+    </section>
+  `;
+}
+
+function renderProductsView() {
+  const products = getFilteredProducts();
+  return `
+    <section class="admin-section" data-admin-view="products">
+      <div class="admin-section__heading">
+        <div>
+          <p class="admin-kicker">Catalogue</p>
+          <h2>Disponibilité</h2>
+        </div>
+        <div class="admin-section__aside">
+          <span>${products.length} produit${products.length > 1 ? "s" : ""}</span>
+        </div>
+      </div>
+      <div class="admin-toolbar">
+        <label class="admin-toolbar__field">
+          <span>Rechercher</span>
+          <input type="search" value="${escapeHtml(state.productSearch)}" placeholder="Nom, id, type..." data-admin-product-search>
+        </label>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
             <tr>
-              <td>
-                <strong>#${escapeHtml(String(order.id))}</strong><br />
-                <span class="admin-table__muted">${escapeHtml(String(order.productIds?.length || 0))} ligne${(order.productIds?.length || 0) > 1 ? "s" : ""}</span>
-              </td>
-              <td>
-                <strong>${escapeHtml(`${order.firstName} ${order.lastName}`.trim())}</strong><br />
-                <span class="admin-table__muted">Compte #${escapeHtml(String(order.userId))}</span>
-              </td>
-              <td>
-                <a href="mailto:${escapeHtml(order.email)}">${escapeHtml(order.email)}</a><br />
-                <span class="admin-table__muted">${escapeHtml(order.phone)}</span>
-              </td>
-              <td>
-                <div class="admin-order-lines">
-                  ${(order.productIds || []).map((selectionKey) => {
-                    const selection = describeSampleSelection(selectionKey);
-                    return `
-                      <div class="admin-order-line">
-                        <strong>${escapeHtml(selection.title)}</strong>
-                        ${selection.subtitle ? `<span>${escapeHtml(selection.subtitle)}</span>` : ""}
+              <th>Produit</th>
+              <th>Type</th>
+              <th>Coloris</th>
+              <th>État</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.length ? products.flatMap((product) => {
+              const status = getProductStatus(product.id);
+              const nextStatus = status === "unavailable" ? "available" : "unavailable";
+              const busy = state.productUpdating.has(product.id);
+              const colorways = product.colorways?.length ? product.colorways : [];
+              const expanded = state.expandedProducts.has(product.id);
+              const productRow = `
+                  <tr class="admin-product-row">
+                    <td>
+                      <button class="admin-product-toggle" type="button" data-admin-toggle-colorways="${escapeHtml(product.id)}" aria-expanded="${expanded ? "true" : "false"}">
+                        <span>${expanded ? "−" : "+"}</span>
+                        <strong>${escapeHtml(product.title)}</strong>
+                      </button>
+                      <div class="admin-table__muted">${escapeHtml(product.id)}</div>
+                    </td>
+                    <td>${escapeHtml(getProductType(product))}</td>
+                    <td>${colorways.length || 1}</td>
+                    <td>
+                      <span class="admin-status-pill admin-status-pill--${status === "unavailable" ? "blocked" : "active"}">
+                        ${getProductStatusLabel(status)}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        class="admin-button ${nextStatus === "unavailable" ? "" : "admin-button--primary"}"
+                        type="button"
+                        data-admin-product-status="${escapeHtml(product.id)}"
+                        data-status="${nextStatus}"
+                        ${busy ? "disabled" : ""}
+                      >
+                        ${busy ? "Mise à jour..." : `Tout passer ${getProductStatusLabel(nextStatus).toLowerCase()}`}
+                      </button>
+                    </td>
+                  </tr>
+                `;
+
+              if (!expanded || !colorways.length) {
+                return [productRow];
+              }
+
+              const colorwayRows = colorways.map((colorway) => {
+                const colorwayStatus = getColorwayStatus(product.id, colorway.id);
+                const nextColorwayStatus = colorwayStatus === "unavailable" ? "available" : "unavailable";
+                const colorwayKey = `${product.id}::${colorway.id}`;
+                const colorwayBusy = state.colorwayUpdating.has(colorwayKey);
+                const preview = getColorwayPreviewUrl(colorway);
+
+                return `
+                  <tr class="admin-colorway-row">
+                    <td>
+                      <div class="admin-colorway-cell">
+                        <span class="admin-colorway-thumb">
+                          ${preview ? `<img src="${escapeHtml(preview)}" alt="${escapeHtml(colorway.label || colorway.sku || "Coloris")}">` : ""}
+                        </span>
+                        <span>
+                          <strong>${escapeHtml(colorway.label || colorway.sku || colorway.id)}</strong>
+                          <span class="admin-table__muted">${escapeHtml(colorway.sku || colorway.id)}</span>
+                        </span>
                       </div>
-                    `;
-                  }).join("")}
-                </div>
-              </td>
-              <td><span class="admin-status-pill admin-status-pill--${escapeHtml(order.status || "pending")}">${escapeHtml(order.status || "pending")}</span></td>
-              <td>
-                <div class="admin-status-actions" role="group" aria-label="Mettre à jour le statut de la commande ${escapeHtml(String(order.id))}">
-                  <button type="button" class="admin-status-action ${order.status === "pending" ? "is-active" : ""}" data-admin-order-status="pending" data-admin-order-id="${order.id}" ${isUpdating ? "disabled" : ""}>Pending</button>
-                  <button type="button" class="admin-status-action ${order.status === "processing" ? "is-active" : ""}" data-admin-order-status="processing" data-admin-order-id="${order.id}" ${isUpdating ? "disabled" : ""}>Processing</button>
-                  <button type="button" class="admin-status-action ${order.status === "completed" ? "is-active" : ""}" data-admin-order-status="completed" data-admin-order-id="${order.id}" ${isUpdating ? "disabled" : ""}>Completed</button>
-                </div>
-              </td>
-              <td>
-                <div class="admin-order-notes">
-                  <textarea rows="4" class="admin-order-notes__field" data-admin-order-notes="${order.id}" ${isUpdating ? "disabled" : ""}>${escapeHtml(noteValue)}</textarea>
-                  <button type="button" class="admin-status-action" data-admin-order-save-notes="${order.id}" ${isUpdating ? "disabled" : ""}>Enregistrer</button>
-                </div>
-              </td>
-              <td>${escapeHtml(order.submittedAt || order.createdAt || "")}</td>
-            </tr>
-          `;
-            })()}
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
+                    </td>
+                    <td colspan="2">Coloris</td>
+                    <td>
+                      <span class="admin-status-pill admin-status-pill--${colorwayStatus === "unavailable" ? "blocked" : "active"}">
+                        ${getProductStatusLabel(colorwayStatus)}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        class="admin-button ${nextColorwayStatus === "unavailable" ? "" : "admin-button--primary"}"
+                        type="button"
+                        data-admin-colorway-status="${escapeHtml(product.id)}"
+                        data-colorway-id="${escapeHtml(colorway.id)}"
+                        data-status="${nextColorwayStatus}"
+                        ${colorwayBusy ? "disabled" : ""}
+                      >
+                        ${colorwayBusy ? "Mise à jour..." : `Passer ${getProductStatusLabel(nextColorwayStatus).toLowerCase()}`}
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              });
+
+              return [productRow, ...colorwayRows];
+            }).join("") : `<tr><td class="admin-table__empty" colspan="5">Aucun produit trouvé.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
   `;
 }
 
-async function loadAdminAccess() {
-  state.accessLoaded = false;
-  state.accessAllowed = false;
-  state.accessError = "";
-  render();
-
-  try {
-    const response = await apiFetch("/api/auth/me");
-    if (!response.ok) {
-      throw new Error("Impossible de vérifier la session administrateur.");
-    }
-
-    const payload = await response.json();
-    if (!payload?.authenticated) {
-      state.accessError = "Connexion administrateur requise.";
-      state.accessLoaded = true;
-      render();
-      return;
-    }
-
-    if (payload?.user?.role !== "admin") {
-      state.accessError = "Accès administrateur requis.";
-      state.accessLoaded = true;
-      render();
-      return;
-    }
-
-    state.accessAllowed = true;
-    state.accessError = "";
-    state.accessLoaded = true;
-    render();
-    void loadProfessionals();
-    void loadSampleOrders();
-    void loadContactInboxSummary();
-  } catch (error) {
-    state.accessError = error.message || "Impossible de vérifier la session administrateur.";
-    state.accessLoaded = true;
-    render();
-  }
-}
-
-async function loadProfessionals() {
-  try {
-    const response = await apiFetch("/api/admin/professionals");
-    if (!response.ok) {
-      throw new Error("Impossible de charger les formulaires professionnels.");
-    }
-    const payload = await response.json();
-    state.professionals = Array.isArray(payload.professionals) ? payload.professionals : [];
-    state.professionalsError = "";
-  } catch (error) {
-    state.professionals = [];
-    state.professionalsError = error.message || "Impossible de charger les formulaires professionnels.";
-  }
-
-  state.professionalsLoaded = true;
-  render();
-}
-
-async function loadSampleOrders() {
-  try {
-    const response = await apiFetch("/api/admin/sample-orders");
-    if (!response.ok) {
-      throw new Error("Impossible de charger les demandes d’échantillons.");
-    }
-    const payload = await response.json();
-    state.sampleOrders = Array.isArray(payload.sampleOrders) ? payload.sampleOrders : [];
-    state.sampleOrderDraftNotes = {};
-    state.sampleOrdersError = "";
-  } catch (error) {
-    state.sampleOrders = [];
-    state.sampleOrdersError = error.message || "Impossible de charger les demandes d’échantillons.";
-  }
-
-  state.sampleOrdersLoaded = true;
-  render();
-}
-
-async function loadContactInboxSummary() {
-  try {
-    const response = await apiFetch("/api/admin/contact-messages");
-    if (!response.ok) {
-      throw new Error("Impossible de charger l’inbox.");
-    }
-
-    const payload = await response.json();
-    state.contactUnreadCount = Number(payload?.unreadCount) || 0;
-  } catch {
-    state.contactUnreadCount = 0;
-  }
-
-  render();
-}
-
-async function updateProfessionalSampleLimit(userId, nextSampleLimit) {
-  if (!Number.isInteger(userId) || userId <= 0) return;
-  if (!Number.isFinite(nextSampleLimit) || nextSampleLimit < 0) return;
-
-  state.professionalsUpdating = [...new Set([...state.professionalsUpdating, userId])];
-  state.professionalsError = "";
-  render();
-
-  try {
-    const response = await apiFetch(`/api/admin/professionals/${userId}/sample-limit`, {
-      method: "PATCH",
-      body: JSON.stringify({ sampleLimit: nextSampleLimit })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || "Impossible de mettre à jour le quota.");
-    }
-
-    state.professionals = state.professionals.map((professional) => (
-      professional.id === userId
-        ? { ...professional, sampleLimit: nextSampleLimit }
-        : professional
-    ));
-  } catch (error) {
-    state.professionalsError = error.message || "Impossible de mettre à jour le quota.";
-  } finally {
-    state.professionalsUpdating = state.professionalsUpdating.filter((id) => id !== userId);
-    render();
-  }
-}
-
-async function updateProfessionalStatus(userId, status) {
-  if (!Number.isInteger(userId) || userId <= 0) return;
-  if (!["active", "blocked"].includes(status)) return;
-
-  state.professionalsStatusUpdating = [...new Set([...state.professionalsStatusUpdating, userId])];
-  state.professionalsError = "";
-  render();
-
-  try {
-    const response = await apiFetch(`/api/admin/professionals/${userId}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || "Impossible de mettre à jour le statut du compte.");
-    }
-
-    state.professionals = state.professionals.map((professional) => (
-      professional.id === userId
-        ? { ...professional, status }
-        : professional
-    ));
-  } catch (error) {
-    state.professionalsError = error.message || "Impossible de mettre à jour le statut du compte.";
-  } finally {
-    state.professionalsStatusUpdating = state.professionalsStatusUpdating.filter((id) => id !== userId);
-    render();
-  }
-}
-
-async function updateSampleOrderStatus(orderId, status) {
-  if (!Number.isInteger(orderId) || !status) return;
-
-  state.sampleOrdersUpdating = [...new Set([...state.sampleOrdersUpdating, orderId])];
-  state.sampleOrdersError = "";
-  render();
-
-  try {
-    const response = await apiFetch(`/api/admin/sample-orders/${orderId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || "Impossible de mettre à jour le statut.");
-    }
-
-    state.sampleOrders = state.sampleOrders.map((order) => (
-      order.id === orderId
-        ? { ...order, status: payload?.status || status, adminNotes: payload?.adminNotes ?? order.adminNotes }
-        : order
-    ));
-  } catch (error) {
-    state.sampleOrdersError = error.message || "Impossible de mettre à jour le statut.";
-  } finally {
-    state.sampleOrdersUpdating = state.sampleOrdersUpdating.filter((id) => id !== orderId);
-    render();
-  }
-}
-
-async function updateSampleOrderNotes(orderId, adminNotes) {
-  if (!Number.isInteger(orderId)) return;
-
-  state.sampleOrdersUpdating = [...new Set([...state.sampleOrdersUpdating, orderId])];
-  state.sampleOrdersError = "";
-  render();
-
-  try {
-    const response = await apiFetch(`/api/admin/sample-orders/${orderId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ adminNotes })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload?.error || "Impossible d’enregistrer la note.");
-    }
-
-    state.sampleOrders = state.sampleOrders.map((order) => (
-      order.id === orderId
-        ? { ...order, status: payload?.status || order.status, adminNotes: payload?.adminNotes ?? adminNotes }
-        : order
-    ));
-    delete state.sampleOrderDraftNotes[orderId];
-  } catch (error) {
-    state.sampleOrdersError = error.message || "Impossible d’enregistrer la note.";
-  } finally {
-    state.sampleOrdersUpdating = state.sampleOrdersUpdating.filter((id) => id !== orderId);
-    render();
-  }
-}
-
-function render() {
-  const app = document.querySelector("#admin-app");
-  if (!app) return;
-
-  const { home, contract, showrooms, products } = state.content;
-  const assetLibrary = getAdminAssets();
-  const pendingOrders = state.sampleOrders.filter((order) => order.status === "pending").length;
-  const blockedProfessionals = state.professionals.filter((professional) => professional.status === "blocked").length;
-  const activeProfessionals = state.professionals.length - blockedProfessionals;
-  const contactUnreadBadge = state.contactUnreadCount > 0
-    ? `<span class="admin-nav-badge">${escapeHtml(String(state.contactUnreadCount))}</span>`
-    : "";
-
-  if (!state.accessLoaded) {
-    app.innerHTML = `
-      <div class="admin-access-shell">
-        <section class="admin-access-card">
-          <div class="admin-wordmark" aria-label="Odyssée">ODYSSEE</div>
-          <p class="admin-access-card__eyebrow">Admin</p>
-          <h1>Ouverture du back office…</h1>
-        </section>
+function renderAccountsView() {
+  const accounts = getFilteredAccounts();
+  return `
+    <section class="admin-section" data-admin-view="accounts">
+      <div class="admin-section__heading">
+        <div>
+          <p class="admin-kicker">Comptes client</p>
+          <h2>Clients inscrits</h2>
+        </div>
+        <div class="admin-section__aside">
+          <button class="admin-button admin-button--primary" type="button" data-admin-export-accounts ${state.accounts.length ? "" : "disabled"}>Exporter CSV</button>
+        </div>
       </div>
-    `;
-    return;
-  }
-
-  if (!state.accessAllowed) {
-    app.innerHTML = `
-      <div class="admin-access-shell">
-        <section class="admin-access-card">
-          <div class="admin-wordmark" aria-label="Odyssée">ODYSSEE</div>
-          <p class="admin-access-card__eyebrow">Admin</p>
-          <h1>Accès refusé</h1>
-          <p>${escapeHtml(state.accessError || "Accès administrateur requis.")}</p>
-        </section>
+      <div class="admin-toolbar">
+        <label class="admin-toolbar__field">
+          <span>Rechercher</span>
+          <input type="search" value="${escapeHtml(state.accountsSearch)}" placeholder="Nom, email, téléphone..." data-admin-account-search>
+        </label>
       </div>
-    `;
-    return;
-  }
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th>Profession</th>
+              <th>Créé le</th>
+              <th>Statut</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${accounts.length ? accounts.map((account) => {
+              const deleting = state.accountsDeleting.has(account.id);
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(`${account.firstName || ""} ${account.lastName || ""}`.trim() || "—")}</strong></td>
+                  <td><a href="mailto:${escapeHtml(account.email)}">${escapeHtml(account.email)}</a></td>
+                  <td><a href="tel:${escapeHtml(account.phone)}">${escapeHtml(account.phone || "—")}</a></td>
+                  <td>${escapeHtml(account.profession || "—")}</td>
+                  <td>${escapeHtml(formatDate(account.createdAt))}</td>
+                  <td>
+                    <span class="admin-status-pill admin-status-pill--${getAccountStatusClass(account.status)}">
+                      ${escapeHtml(getAccountStatusLabel(account.status))}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      class="admin-button admin-button--danger"
+                      type="button"
+                      data-admin-delete-account="${account.id}"
+                      data-account-label="${escapeHtml(`${account.firstName || ""} ${account.lastName || ""}`.trim() || account.email)}"
+                      ${deleting ? "disabled" : ""}
+                    >
+                      ${deleting ? "Suppression..." : "Supprimer"}
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join("") : `<tr><td class="admin-table__empty" colspan="8">Aucun compte trouvé.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderImportView() {
+  return `
+    <section class="admin-section" data-admin-view="import">
+      <div class="admin-section__heading">
+        <div>
+          <p class="admin-kicker">Import</p>
+          <h2>Ajouter un produit par lien</h2>
+        </div>
+      </div>
+      <div class="admin-grid admin-grid--two">
+        <form class="admin-surface admin-panel" data-admin-import-form>
+          <div class="admin-surface__intro">
+            <h3>Lien produit</h3>
+            <p>Sources acceptées pour la file d’import : Froca, York Wallcoverings, Symphony Mills.</p>
+          </div>
+          <label>
+            Lien
+            <input type="url" value="${escapeHtml(state.importUrl)}" placeholder="https://..." data-admin-import-url required>
+          </label>
+          <div class="admin-panel__actions">
+            <button class="admin-button admin-button--primary" type="submit" ${state.importBusy ? "disabled" : ""}>
+              ${state.importBusy ? "Enregistrement..." : "Ajouter à la file"}
+            </button>
+          </div>
+          ${state.notice ? `<p class="admin-table__muted">${escapeHtml(state.notice)}</p>` : ""}
+        </form>
+        <div class="admin-surface">
+          <div class="admin-surface__intro">
+            <h3>File récente</h3>
+            <p>Ces liens sont enregistrés côté back office. L’import automatique live reste à finaliser dans le pipeline catalogue.</p>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Lien</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${state.importJobs.length ? state.importJobs.map((job) => `
+                  <tr>
+                    <td>
+                      <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(job.url)}</a>
+                      <div class="admin-table__muted">${escapeHtml(job.message || "")}</div>
+                    </td>
+                    <td><span class="admin-status-pill">${escapeHtml(job.status)}</span></td>
+                    <td>${escapeHtml(formatDate(job.createdAt))}</td>
+                  </tr>
+                `).join("") : `<tr><td class="admin-table__empty" colspan="3">Aucun lien enregistré.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderUsersView() {
+  return `
+    <section class="admin-section" data-admin-view="users">
+      <div class="admin-section__heading">
+        <div>
+          <p class="admin-kicker">Back office</p>
+          <h2>Utilisateurs admin</h2>
+        </div>
+        <div class="admin-section__aside">
+          <span>${state.adminUsers.length} utilisateur${state.adminUsers.length > 1 ? "s" : ""}</span>
+        </div>
+      </div>
+      <div class="admin-grid admin-grid--two">
+        <form class="admin-surface admin-panel" data-admin-create-user-form>
+          <div class="admin-surface__intro">
+            <h3>Créer un accès</h3>
+            <p>Ce compte servira uniquement à accéder au back office, pas au parcours client.</p>
+          </div>
+          <label>
+            Identifiant
+            <input type="text" value="${escapeHtml(state.newAdminUsername)}" placeholder="ex: Sarah" autocomplete="off" data-admin-new-username required>
+          </label>
+          <label>
+            Mot de passe
+            <input type="password" value="${escapeHtml(state.newAdminPassword)}" placeholder="Minimum 10 caractères" autocomplete="new-password" data-admin-new-password required>
+          </label>
+          <div class="admin-panel__actions">
+            <button class="admin-button admin-button--primary" type="submit" ${state.createAdminBusy ? "disabled" : ""}>
+              ${state.createAdminBusy ? "Création..." : "Créer le compte"}
+            </button>
+          </div>
+          ${state.notice ? `<p class="admin-table__muted">${escapeHtml(state.notice)}</p>` : ""}
+        </form>
+        <div class="admin-surface">
+          <div class="admin-surface__intro">
+            <h3>Accès existants</h3>
+            <p>L’identifiant par défaut est Admin.</p>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Identifiant</th>
+                  <th>Statut</th>
+                  <th>Créé le</th>
+                  <th>Dernière connexion</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${state.adminUsers.length ? state.adminUsers.map((user) => `
+                  <tr>
+                    <td><strong>${escapeHtml(user.username)}</strong></td>
+                    <td>
+                      <span class="admin-status-pill admin-status-pill--${user.status === "active" ? "active" : "blocked"}">
+                        ${user.status === "active" ? "Actif" : "Bloqué"}
+                      </span>
+                    </td>
+                    <td>${escapeHtml(formatDate(user.createdAt))}</td>
+                    <td>${escapeHtml(formatDate(user.lastLoginAt))}</td>
+                  </tr>
+                `).join("") : `<tr><td class="admin-table__empty" colspan="4">Aucun utilisateur admin.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderMain() {
+  const viewMarkup = state.activeView === "accounts"
+    ? renderAccountsView()
+    : state.activeView === "import"
+      ? renderImportView()
+      : state.activeView === "users"
+        ? renderUsersView()
+      : renderProductsView();
 
   app.innerHTML = `
     <div class="admin-shell">
-      <aside class="admin-sidebar">
-        <div class="admin-sidebar__brand">
-          <img class="admin-sidebar__logo" src="/custom-assets/logo-odc-white.png" alt="Odyssée" />
-          <div class="admin-sidebar__brand-meta">
-            <span>Admin</span>
-            <strong>Control Room</strong>
-          </div>
-        </div>
-        <nav class="admin-sidebar__nav" aria-label="Navigation admin">
-          <a href="#admin-overview">Vue d’ensemble</a>
-          <a href="/admin-inbox.html">Inbox ${contactUnreadBadge}</a>
-          <a href="#admin-sample-orders">Demandes</a>
-          <a href="#admin-professionals">Comptes pro</a>
-          <a href="#admin-products">Imports produits</a>
-          <a href="#admin-home">Home</a>
-          <a href="#admin-contract">Contract</a>
-          <a href="#admin-showrooms">Showrooms</a>
-          <a href="#admin-assets">Assets</a>
-        </nav>
-        <div class="admin-sidebar__actions">
-          <button type="button" class="admin-button admin-button--primary" data-admin-save>Enregistrer</button>
-          <button type="button" class="admin-button" data-admin-reset>Réinitialiser</button>
-        </div>
-      </aside>
-
+      ${renderSidebar()}
       <main class="admin-main">
-        <header id="admin-overview" class="admin-topbar">
-          <div class="admin-topbar__copy">
-            <p class="admin-kicker">Odyssée</p>
-            <h1>Back office</h1>
-            <p class="admin-topbar__lede">Catalogue, comptes pro, demandes et bibliothèque visuelle dans un seul espace clair.</p>
-          </div>
-          <div class="admin-topbar__actions">
-            <a class="admin-button" href="/admin-inbox.html">Inbox${state.contactUnreadCount > 0 ? ` (${escapeHtml(String(state.contactUnreadCount))})` : ""}</a>
-            <button type="button" class="admin-button admin-button--primary" data-admin-save>Enregistrer</button>
-            <button type="button" class="admin-button" data-admin-reset>Réinitialiser</button>
-          </div>
-        </header>
-
-        <section class="admin-overview-grid">
-          <article class="admin-overview-lead">
-            <p class="admin-kicker">Catalogue live</p>
-            <div class="admin-overview-lead__numbers">
-              <strong>${catalogStats.visibleProducts}</strong>
-              <span>produits visibles</span>
-            </div>
-            <p class="admin-overview-lead__meta">${catalogStats.parentProducts} familles produit actives dans le catalogue actuel.</p>
-          </article>
-          <article class="admin-stat">
-            <span>Demandes en attente</span>
-            <strong>${pendingOrders}</strong>
-          </article>
-          <article class="admin-stat">
-            <span>Comptes actifs</span>
-            <strong>${activeProfessionals}</strong>
-          </article>
-          <article class="admin-stat">
-            <span>Comptes bloqués</span>
-            <strong>${Math.max(0, blockedProfessionals)}</strong>
-          </article>
-          <article class="admin-stat">
-            <span>Imports en file</span>
-            <strong>${products.importLinks.length}</strong>
-          </article>
-          <article class="admin-stat">
-            <span>Cartes home</span>
-            <strong>${home.shortcuts.length}</strong>
-          </article>
-          <article class="admin-stat">
-            <span>Assets en bibliothèque</span>
-            <strong>${assetLibrary.length}</strong>
-          </article>
-        </section>
-
-        <section id="admin-products" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Produits</p><h2>Imports</h2></div>
-            <div class="admin-section__aside">
-              <span>${catalogStats.visibleProducts} références visibles</span>
-              <span>${catalogStats.parentProducts} produits parents</span>
-            </div>
-          </div>
-          <div class="admin-grid admin-grid--two">
-            <div class="admin-surface">
-              <label class="admin-panel__label">Liens à ajouter
-                <textarea rows="8" id="admin-product-links-input" placeholder="https://www.odyssee.ma/produits/p/...\nhttps://www.odyssee.ma/produits/p/..."></textarea>
-              </label>
-              <div class="admin-panel__actions">
-                <button type="button" class="admin-button admin-button--primary" data-admin-add-links>Ajouter à la file</button>
-              </div>
-            </div>
-            <div class="admin-surface">
-              <h3>File active</h3>
-              <ul class="admin-link-list">${renderProductQueue()}</ul>
-            </div>
-          </div>
-        </section>
-
-        <section id="admin-professionals" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Professionnels</p><h2>Comptes</h2></div>
-          </div>
-          <div class="admin-surface">
-            ${renderProfessionalsTable()}
-          </div>
-        </section>
-
-        <section id="admin-sample-orders" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Échantillons</p><h2>Demandes</h2></div>
-          </div>
-          <div class="admin-toolbar admin-toolbar--sample-orders">
-            <label class="admin-toolbar__field">
-              <span>Nom client</span>
-              <input id="admin-sample-orders-search" type="search" value="${escapeHtml(state.sampleOrdersSearch)}" placeholder="Rechercher par nom" />
-            </label>
-            <label class="admin-toolbar__field">
-              <span>Date</span>
-              <input id="admin-sample-orders-date" type="date" value="${escapeHtml(state.sampleOrdersDate)}" />
-            </label>
-            <label class="admin-toolbar__field">
-              <span>Trier par</span>
-              <select id="admin-sample-orders-sort">
-                <option value="date-desc" ${state.sampleOrdersSort === "date-desc" ? "selected" : ""}>Date récente</option>
-                <option value="date-asc" ${state.sampleOrdersSort === "date-asc" ? "selected" : ""}>Date ancienne</option>
-                <option value="name-asc" ${state.sampleOrdersSort === "name-asc" ? "selected" : ""}>Nom A → Z</option>
-                <option value="name-desc" ${state.sampleOrdersSort === "name-desc" ? "selected" : ""}>Nom Z → A</option>
-              </select>
-            </label>
-            <label class="admin-toolbar__field">
-              <span>Par page</span>
-              <select id="admin-sample-orders-page-size">
-                <option value="10" ${state.sampleOrdersPageSize === 10 ? "selected" : ""}>10</option>
-                <option value="25" ${state.sampleOrdersPageSize === 25 ? "selected" : ""}>25</option>
-                <option value="50" ${state.sampleOrdersPageSize === 50 ? "selected" : ""}>50</option>
-              </select>
-            </label>
-            <button type="button" class="admin-button admin-button--primary" data-admin-export-sample-orders-csv>Exporter CSV</button>
-            <button type="button" class="admin-button" data-admin-clear-sample-order-filters>Réinitialiser</button>
-          </div>
-          <div class="admin-surface">
-            ${renderSampleOrdersTable()}
-          </div>
-        </section>
-
-        <section id="admin-home" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Home</p><h2>Cartes</h2></div>
-          </div>
-          <div class="admin-card-grid">${home.shortcuts.map((card, index) => shortcutCardEditor(card, index)).join("")}</div>
-        </section>
-
-        <section id="admin-contract" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Contract</p><h2>Hero & texte</h2></div>
-          </div>
-          <div class="admin-grid admin-grid--two">
-            <div class="admin-surface">
-              <div class="admin-preview admin-preview--hero">
-                <img src="${contract.heroImage}" alt="Hero contract" />
-                <div class="admin-preview__overlay">
-                  <strong>${escapeHtml(contract.heroTitle)}</strong>
-                  <span>${escapeHtml(contract.heroButtonLabel)}</span>
-                </div>
-              </div>
-              <label>Image hero
-                <select id="admin-contract-hero-image">${renderAssetOptions(contract.heroImage)}</select>
-              </label>
-              <label>Titre hero<input id="admin-contract-hero-title" type="text" value="${escapeHtml(contract.heroTitle)}" /></label>
-              <label>Bouton hero<input id="admin-contract-hero-button" type="text" value="${escapeHtml(contract.heroButtonLabel)}" /></label>
-            </div>
-            <div class="admin-surface">
-              <div class="admin-inline-layout">
-                <div class="admin-inline-layout__copy">
-                  <h3>${escapeHtml(contract.copyTitle)}</h3>
-                  ${contract.copyParagraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
-                </div>
-                <div class="admin-inline-layout__media">
-                  <img src="${contract.sideImage}" alt="Visuel contract" />
-                </div>
-              </div>
-              <label>Titre bloc texte<input id="admin-contract-copy-title" type="text" value="${escapeHtml(contract.copyTitle)}" /></label>
-              <label>Texte principal<textarea id="admin-contract-copy-body" rows="9">${contract.copyParagraphs.join("\n\n")}</textarea></label>
-              <label>Image bloc texte
-                <select id="admin-contract-side-image">${renderAssetOptions(contract.sideImage)}</select>
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section id="admin-showrooms" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Showrooms</p><h2>Visuel & villes</h2></div>
-          </div>
-          <div class="admin-grid admin-grid--two">
-            <div class="admin-surface">
-              <div class="admin-preview admin-preview--showrooms"><img src="${showrooms.heroImage}" alt="Showrooms" /></div>
-              <label>Image showrooms
-                <select id="admin-showrooms-image">${renderAssetOptions(showrooms.heroImage)}</select>
-              </label>
-            </div>
-            <div class="admin-surface">
-              <h3>Villes affichées</h3>
-              <div class="admin-city-list">
-                ${showrooms.cities.map((city, index) => `<label>Ville ${index + 1}<input type="text" value="${escapeHtml(city)}" data-admin-showroom-city="${index}" /></label>`).join("")}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="admin-assets" class="admin-section">
-          <div class="admin-section__heading">
-            <div><p class="admin-kicker">Visuels</p><h2>Assets</h2></div>
-            <div class="admin-section__aside">
-              <span>${assetLibrary.length} assets disponibles</span>
-            </div>
-          </div>
-          <div class="admin-grid admin-grid--assets">
-            <div class="admin-surface admin-surface--asset-form">
-              <div class="admin-surface__intro">
-                <h3>Ajouter un asset</h3>
-                <p>Ajoute un label et un chemin ou une URL. L’asset sera disponible immédiatement dans les sélecteurs du backoffice.</p>
-              </div>
-              <label>Nom affiché
-                <input id="admin-asset-label" type="text" value="${escapeHtml(state.assetDraftLabel)}" placeholder="Ex: Hero printemps" />
-              </label>
-              <label>Chemin ou URL
-                <input id="admin-asset-src" type="text" value="${escapeHtml(state.assetDraftSrc)}" placeholder="/custom-assets/mon-visuel.jpg" />
-              </label>
-              <div class="admin-panel__actions">
-                <button type="button" class="admin-button admin-button--primary" data-admin-add-asset>Ajouter l’asset</button>
-              </div>
-            </div>
-            <div class="admin-assets-grid">
-            ${assetLibrary.map((asset) => `
-              <article class="admin-asset-card">
-                <img src="${asset.src}" alt="${escapeHtml(asset.label)}" />
-                <div>
-                  <strong>${escapeHtml(asset.label)}</strong>
-                  <span>${escapeHtml(asset.src)}</span>
-                </div>
-                <button type="button" class="admin-asset-card__remove" data-admin-remove-asset="${escapeHtml(asset.src)}">Supprimer</button>
-              </article>
-            `).join("")}
-            </div>
-          </div>
-        </section>
+        ${renderTopbar()}
+        ${renderOverview()}
+        ${viewMarkup}
       </main>
     </div>
   `;
 }
 
-function bindEvents() {
-  document.addEventListener("click", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (!target) return;
+function render() {
+  if (!state.accessLoaded) {
+    renderAccessLoading();
+    return;
+  }
 
-    if (target.matches("[data-admin-add-links]")) {
-      const input = document.querySelector("#admin-product-links-input");
-      if (!(input instanceof HTMLTextAreaElement)) return;
-      const nextLinks = input.value.split(/\n+/).map((item) => item.trim()).filter(Boolean);
-      if (!nextLinks.length) return;
-      state.content.products.importLinks = [...new Set([...state.content.products.importLinks, ...nextLinks])];
-      input.value = "";
-      saveSiteContent(state.content);
-      render();
-      return;
-    }
+  if (!state.accessAllowed) {
+    renderAccessDenied();
+    return;
+  }
 
-    if (target.matches("[data-admin-add-asset]")) {
-      const label = state.assetDraftLabel.trim();
-      const src = state.assetDraftSrc.trim();
-      if (!label || !src) {
-        return;
-      }
-
-      const nextAssets = getAdminAssets().filter((asset) => asset.src !== src);
-      nextAssets.unshift({ id: buildAssetId(label, src), label, src });
-      state.content.assets = nextAssets;
-      state.assetDraftLabel = "";
-      state.assetDraftSrc = "";
-      saveSiteContent(state.content);
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-remove-asset]")) {
-      const src = String(target.getAttribute("data-admin-remove-asset") || "").trim();
-      if (!src) {
-        return;
-      }
-
-      state.content.assets = getAdminAssets().filter((asset) => asset.src !== src);
-      saveSiteContent(state.content);
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-remove-link]")) {
-      const index = Number(target.getAttribute("data-admin-remove-link"));
-      state.content.products.importLinks.splice(index, 1);
-      saveSiteContent(state.content);
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-save]")) {
-      saveSiteContent(state.content);
-      target.textContent = "Enregistré";
-      window.setTimeout(() => { target.textContent = "Enregistrer"; }, 1200);
-      return;
-    }
-
-    if (target.matches("[data-admin-reset]")) {
-      state.content = structuredClone(DEFAULT_SITE_CONTENT);
-      resetSiteContent();
-      saveSiteContent(state.content);
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-order-status]")) {
-      const orderId = Number(target.getAttribute("data-admin-order-id"));
-      const status = String(target.getAttribute("data-admin-order-status") || "").trim();
-      void updateSampleOrderStatus(orderId, status);
-      return;
-    }
-
-    if (target.matches("[data-admin-order-save-notes]")) {
-      const orderId = Number(target.getAttribute("data-admin-order-save-notes"));
-      const order = state.sampleOrders.find((item) => item.id === orderId);
-      const adminNotes = Object.prototype.hasOwnProperty.call(state.sampleOrderDraftNotes, orderId)
-        ? state.sampleOrderDraftNotes[orderId]
-        : (order?.adminNotes || "");
-      void updateSampleOrderNotes(orderId, adminNotes);
-      return;
-    }
-
-    if (target.matches("[data-admin-clear-sample-order-filters]")) {
-      state.sampleOrdersSearch = "";
-      state.sampleOrdersDate = "";
-      state.sampleOrdersSort = "date-desc";
-      state.sampleOrdersPage = 1;
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-export-sample-orders-csv]")) {
-      exportSampleOrdersCsv();
-      return;
-    }
-
-    if (target.matches("[data-admin-sample-orders-page]")) {
-      const direction = String(target.getAttribute("data-admin-sample-orders-page") || "");
-      const { totalPages, currentPage } = getSampleOrdersPaginationMeta();
-      if (direction === "prev" && currentPage > 1) {
-        state.sampleOrdersPage = currentPage - 1;
-      }
-      if (direction === "next" && currentPage < totalPages) {
-        state.sampleOrdersPage = currentPage + 1;
-      }
-      render();
-      return;
-    }
-
-    if (target.matches("[data-admin-sample-limit-delta]")) {
-      const userId = Number(target.getAttribute("data-admin-user-id"));
-      const delta = Number(target.getAttribute("data-admin-sample-limit-delta"));
-      const professional = state.professionals.find((item) => item.id === userId);
-      if (!professional || !Number.isFinite(delta)) return;
-      const nextSampleLimit = Math.max(0, Number(professional.sampleLimit || 0) + delta);
-      void updateProfessionalSampleLimit(userId, nextSampleLimit);
-      return;
-    }
-
-    if (target.matches("[data-admin-professional-status]")) {
-      const userId = Number(target.getAttribute("data-admin-professional-id"));
-      const status = String(target.getAttribute("data-admin-professional-status") || "").trim();
-      void updateProfessionalStatus(userId, status);
-    }
-  });
-
-  document.addEventListener("input", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (!target) return;
-
-    const shortcutTitle = target.getAttribute("data-admin-shortcut-title");
-    const shortcutHref = target.getAttribute("data-admin-shortcut-href");
-    const showroomCity = target.getAttribute("data-admin-showroom-city");
-    const orderNotes = target.getAttribute("data-admin-order-notes");
-
-    if (shortcutTitle !== null && target instanceof HTMLTextAreaElement) {
-      state.content.home.shortcuts[Number(shortcutTitle)].title = target.value.trim().replace(/\n+/g, "<br />");
-    }
-    if (shortcutHref !== null && target instanceof HTMLInputElement) {
-      state.content.home.shortcuts[Number(shortcutHref)].href = target.value.trim() || "/";
-    }
-    if (showroomCity !== null && target instanceof HTMLInputElement) {
-      state.content.showrooms.cities[Number(showroomCity)] = target.value.trim();
-    }
-    if (orderNotes !== null && target instanceof HTMLTextAreaElement) {
-      state.sampleOrderDraftNotes[Number(orderNotes)] = target.value;
-      return;
-    }
-    if (target.id === "admin-sample-orders-search" && target instanceof HTMLInputElement) {
-      state.sampleOrdersError = "";
-      state.sampleOrdersSearch = target.value;
-      state.sampleOrdersPage = 1;
-      render();
-      return;
-    }
-    if (target.id === "admin-sample-orders-date" && target instanceof HTMLInputElement) {
-      state.sampleOrdersError = "";
-      state.sampleOrdersDate = target.value;
-      state.sampleOrdersPage = 1;
-      render();
-      return;
-    }
-    if (target.id === "admin-sample-orders-sort" && target instanceof HTMLSelectElement) {
-      state.sampleOrdersError = "";
-      state.sampleOrdersSort = target.value || "date-desc";
-      state.sampleOrdersPage = 1;
-      render();
-      return;
-    }
-    if (target.id === "admin-sample-orders-page-size" && target instanceof HTMLSelectElement) {
-      state.sampleOrdersError = "";
-      state.sampleOrdersPageSize = Number(target.value) || 10;
-      state.sampleOrdersPage = 1;
-      render();
-      return;
-    }
-    if (target.id === "admin-contract-hero-title" && target instanceof HTMLInputElement) {
-      state.content.contract.heroTitle = target.value;
-    }
-    if (target.id === "admin-contract-hero-button" && target instanceof HTMLInputElement) {
-      state.content.contract.heroButtonLabel = target.value;
-    }
-    if (target.id === "admin-contract-copy-title" && target instanceof HTMLInputElement) {
-      state.content.contract.copyTitle = target.value;
-    }
-    if (target.id === "admin-contract-copy-body" && target instanceof HTMLTextAreaElement) {
-      state.content.contract.copyParagraphs = target.value.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
-    }
-    if (target.id === "admin-asset-label" && target instanceof HTMLInputElement) {
-      state.assetDraftLabel = target.value;
-      return;
-    }
-    if (target.id === "admin-asset-src" && target instanceof HTMLInputElement) {
-      state.assetDraftSrc = target.value;
-      return;
-    }
-
-    saveSiteContent(state.content);
-  });
-
-  document.addEventListener("change", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (!target) return;
-
-    const shortcutImage = target.getAttribute("data-admin-shortcut-image");
-    if (shortcutImage !== null && target instanceof HTMLSelectElement) {
-      state.content.home.shortcuts[Number(shortcutImage)].image = target.value;
-    }
-    if (target.id === "admin-contract-hero-image" && target instanceof HTMLSelectElement) {
-      state.content.contract.heroImage = target.value;
-    }
-    if (target.id === "admin-contract-side-image" && target instanceof HTMLSelectElement) {
-      state.content.contract.sideImage = target.value;
-    }
-    if (target.id === "admin-showrooms-image" && target instanceof HTMLSelectElement) {
-      state.content.showrooms.heroImage = target.value;
-    }
-
-    saveSiteContent(state.content);
-    render();
-  });
+  renderMain();
 }
 
-render();
-bindEvents();
-void loadAdminAccess();
+async function loadAccess() {
+  render();
+  try {
+    const response = await apiFetch("/api/admin-auth/me");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.authenticated) {
+      state.accessLoaded = true;
+      state.accessAllowed = false;
+      state.accessError = payload.error || "";
+      render();
+      return;
+    }
+
+    state.accessLoaded = true;
+    state.accessAllowed = true;
+    render();
+    await Promise.all([loadProductStatuses(), loadAccounts(), loadImportJobs(), loadAdminUsers()]);
+  } catch (error) {
+    state.accessLoaded = true;
+    state.accessAllowed = false;
+    state.accessError = error.message || "Impossible de vérifier la session.";
+    render();
+  }
+}
+
+async function loginAdmin() {
+  state.loginBusy = true;
+  state.accessError = "";
+  render();
+  try {
+    const response = await apiFetch("/api/admin-auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: state.loginUsername,
+        password: state.loginPassword
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.authenticated) {
+      throw new Error(payload.error || "Connexion impossible.");
+    }
+    state.accessLoaded = true;
+    state.accessAllowed = true;
+    state.loginPassword = "";
+    render();
+    await Promise.all([loadProductStatuses(), loadAccounts(), loadImportJobs(), loadAdminUsers()]);
+  } catch (error) {
+    state.accessAllowed = false;
+    state.accessError = error.message || "Connexion impossible.";
+  } finally {
+    state.loginBusy = false;
+    render();
+  }
+}
+
+async function logoutAdmin() {
+  await apiFetch("/api/admin-auth/logout", { method: "POST" }).catch(() => {});
+  state.accessAllowed = false;
+  state.accessError = "";
+  state.loginPassword = "";
+  render();
+}
+
+async function loadProductStatuses() {
+  try {
+    const response = await apiFetch("/api/admin/product-statuses");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Chargement impossible.");
+    }
+    state.productStatuses = new Map((payload.statuses || []).map((item) => [item.productId, item.status]));
+    state.colorwayStatuses = new Map(
+      (payload.colorwayStatuses || []).map((item) => [`${item.productId}::${item.colorwayId}`, item.status])
+    );
+    state.productsLoaded = true;
+    render();
+  } catch (error) {
+    state.notice = error.message || "Impossible de charger les statuts produits.";
+    render();
+  }
+}
+
+async function loadAccounts() {
+  try {
+    const response = await apiFetch("/api/admin/professionals");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Chargement impossible.");
+    }
+    state.accounts = payload.professionals || [];
+    state.accountsLoaded = true;
+    render();
+  } catch (error) {
+    state.notice = error.message || "Impossible de charger les comptes.";
+    render();
+  }
+}
+
+async function deleteAccount(userId, label) {
+  const confirmed = window.confirm(`Supprimer définitivement le compte client "${label}" ?`);
+  if (!confirmed) {
+    return;
+  }
+
+  state.accountsDeleting.add(userId);
+  render();
+  try {
+    const response = await apiFetch(`/api/admin/professionals/${encodeURIComponent(userId)}`, {
+      method: "DELETE"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Suppression impossible.");
+    }
+    state.accounts = state.accounts.filter((account) => account.id !== userId);
+    state.notice = "";
+  } catch (error) {
+    state.notice = error.message || "Suppression impossible.";
+  } finally {
+    state.accountsDeleting.delete(userId);
+    render();
+  }
+}
+
+async function loadImportJobs() {
+  try {
+    const response = await apiFetch("/api/admin/product-import-jobs");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Chargement impossible.");
+    }
+    state.importJobs = payload.jobs || [];
+    state.importJobsLoaded = true;
+    render();
+  } catch (error) {
+    state.notice = error.message || "Impossible de charger la file d'import.";
+    render();
+  }
+}
+
+async function loadAdminUsers() {
+  try {
+    const response = await apiFetch("/api/admin/users");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Chargement impossible.");
+    }
+    state.adminUsers = payload.users || [];
+    state.adminUsersLoaded = true;
+    render();
+  } catch (error) {
+    state.notice = error.message || "Impossible de charger les utilisateurs admin.";
+    render();
+  }
+}
+
+async function refreshActiveView() {
+  if (state.activeView === "accounts") {
+    await loadAccounts();
+  } else if (state.activeView === "import") {
+    await loadImportJobs();
+  } else if (state.activeView === "users") {
+    await loadAdminUsers();
+  } else {
+    await loadProductStatuses();
+  }
+}
+
+async function updateProductStatus(productId, status) {
+  state.productUpdating.add(productId);
+  render();
+  try {
+    const response = await apiFetch(`/api/admin/product-statuses/${encodeURIComponent(productId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Mise à jour impossible.");
+    }
+    state.productStatuses.set(productId, status);
+    state.notice = "";
+  } catch (error) {
+    state.notice = error.message || "Mise à jour impossible.";
+  } finally {
+    state.productUpdating.delete(productId);
+    render();
+  }
+}
+
+async function updateColorwayStatus(productId, colorwayId, status) {
+  const key = `${productId}::${colorwayId}`;
+  state.colorwayUpdating.add(key);
+  render();
+  try {
+    const response = await apiFetch(
+      `/api/admin/product-statuses/${encodeURIComponent(productId)}/colorways/${encodeURIComponent(colorwayId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      }
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Mise à jour impossible.");
+    }
+    state.colorwayStatuses.set(key, status);
+    state.notice = "";
+  } catch (error) {
+    state.notice = error.message || "Mise à jour impossible.";
+  } finally {
+    state.colorwayUpdating.delete(key);
+    render();
+  }
+}
+
+async function submitImportJob() {
+  const url = state.importUrl.trim();
+  if (!url) return;
+
+  state.importBusy = true;
+  state.notice = "";
+  render();
+  try {
+    const response = await apiFetch("/api/admin/product-import-jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Lien impossible à enregistrer.");
+    }
+    state.importUrl = "";
+    state.notice = payload.job?.message || "Lien enregistré.";
+    await loadImportJobs();
+  } catch (error) {
+    state.notice = error.message || "Lien impossible à enregistrer.";
+  } finally {
+    state.importBusy = false;
+    render();
+  }
+}
+
+async function createAdminUser() {
+  const username = state.newAdminUsername.trim();
+  const password = state.newAdminPassword;
+  if (!username || !password) return;
+
+  state.createAdminBusy = true;
+  state.notice = "";
+  render();
+  try {
+    const response = await apiFetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Création impossible.");
+    }
+    state.newAdminUsername = "";
+    state.newAdminPassword = "";
+    state.notice = "Utilisateur admin créé.";
+    await loadAdminUsers();
+  } catch (error) {
+    state.notice = error.message || "Création impossible.";
+  } finally {
+    state.createAdminBusy = false;
+    render();
+  }
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportAccountsCsv() {
+  const rows = [
+    ["Prénom", "Nom", "Email", "Téléphone", "Profession", "Statut", "Créé le"],
+    ...state.accounts.map((account) => [
+      account.firstName,
+      account.lastName,
+      account.email,
+      account.phone,
+      account.profession,
+      getAccountStatusLabel(account.status),
+      account.createdAt
+    ])
+  ];
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `odyssee-comptes-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+app.addEventListener("input", (event) => {
+  const target = event.target instanceof HTMLInputElement ? event.target : null;
+  if (!target) return;
+
+  if (target.matches("[data-admin-product-search]")) {
+    state.productSearch = target.value;
+    render();
+  }
+
+  if (target.matches("[data-admin-login-username]")) {
+    state.loginUsername = target.value;
+  }
+
+  if (target.matches("[data-admin-login-password]")) {
+    state.loginPassword = target.value;
+  }
+
+  if (target.matches("[data-admin-account-search]")) {
+    state.accountsSearch = target.value;
+    render();
+  }
+
+  if (target.matches("[data-admin-import-url]")) {
+    state.importUrl = target.value;
+  }
+
+  if (target.matches("[data-admin-new-username]")) {
+    state.newAdminUsername = target.value;
+  }
+
+  if (target.matches("[data-admin-new-password]")) {
+    state.newAdminPassword = target.value;
+  }
+});
+
+app.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+
+  const statusButton = target.closest("[data-admin-product-status]");
+  if (statusButton instanceof HTMLButtonElement) {
+    updateProductStatus(statusButton.dataset.adminProductStatus || "", statusButton.dataset.status || "available");
+    return;
+  }
+
+  const colorwayButton = target.closest("[data-admin-colorway-status]");
+  if (colorwayButton instanceof HTMLButtonElement) {
+    updateColorwayStatus(
+      colorwayButton.dataset.adminColorwayStatus || "",
+      colorwayButton.dataset.colorwayId || "",
+      colorwayButton.dataset.status || "available"
+    );
+    return;
+  }
+
+  const toggleButton = target.closest("[data-admin-toggle-colorways]");
+  if (toggleButton instanceof HTMLButtonElement) {
+    const productId = toggleButton.dataset.adminToggleColorways || "";
+    if (state.expandedProducts.has(productId)) {
+      state.expandedProducts.delete(productId);
+    } else {
+      state.expandedProducts.add(productId);
+    }
+    render();
+    return;
+  }
+
+  if (target.closest("[data-admin-export-accounts]")) {
+    exportAccountsCsv();
+    return;
+  }
+
+  const deleteAccountButton = target.closest("[data-admin-delete-account]");
+  if (deleteAccountButton instanceof HTMLButtonElement) {
+    const userId = Number(deleteAccountButton.dataset.adminDeleteAccount);
+    const label = deleteAccountButton.dataset.accountLabel || "ce compte";
+    if (Number.isInteger(userId) && userId > 0) {
+      deleteAccount(userId, label);
+    }
+    return;
+  }
+
+  if (target.closest("[data-admin-refresh]")) {
+    refreshActiveView();
+    return;
+  }
+
+  if (target.closest("[data-admin-logout]")) {
+    logoutAdmin();
+  }
+});
+
+app.addEventListener("submit", (event) => {
+  const form = event.target instanceof HTMLFormElement ? event.target : null;
+  if (!form) {
+    return;
+  }
+
+  if (form.matches("[data-admin-login-form]")) {
+    event.preventDefault();
+    loginAdmin();
+    return;
+  }
+
+  if (form.matches("[data-admin-import-form]")) {
+    event.preventDefault();
+    submitImportJob();
+    return;
+  }
+
+  if (form.matches("[data-admin-create-user-form]")) {
+    event.preventDefault();
+    createAdminUser();
+  }
+});
+
+window.addEventListener("hashchange", () => {
+  state.activeView = getActiveViewFromHash();
+  render();
+  refreshActiveView();
+});
+
+loadAccess();

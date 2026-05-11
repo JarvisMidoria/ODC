@@ -7,7 +7,7 @@ function collectHtmlFiles(directory, relative = "") {
   const files = {};
 
   for (const entry of entries) {
-    if (["dist", "node_modules", ".git"].includes(entry)) {
+    if (["dist", "node_modules", ".git", ".vercel", "Odyssee", "tmp"].includes(entry)) {
       continue;
     }
 
@@ -58,7 +58,7 @@ export default defineConfig({
         target: "http://127.0.0.1:8787",
         changeOrigin: true
       },
-      "/api/samples": {
+      "/api/admin-auth": {
         target: "http://127.0.0.1:8787",
         changeOrigin: true
       },
@@ -67,6 +67,10 @@ export default defineConfig({
         changeOrigin: true
       },
       "/api/admin": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true
+      },
+      "/api/catalog": {
         target: "http://127.0.0.1:8787",
         changeOrigin: true
       },

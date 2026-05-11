@@ -10,6 +10,3 @@ export const PROFESSIONAL_PROFESSIONS = [
   "Retail",
   "Autre"
 ];
-
-export const PROFESSIONAL_SAMPLE_LIMIT = 10;
-

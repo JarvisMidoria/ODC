@@ -3,19 +3,26 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { db } from "./db.mjs";
-import { PROFESSIONAL_PROFESSIONS, PROFESSIONAL_SAMPLE_LIMIT } from "../src/professional-config.js";
+import { PROFESSIONAL_PROFESSIONS } from "../src/professional-config.js";
 
 const PORT = Number(process.env.ODC_API_PORT || 8787);
 const SESSION_COOKIE = "odc_prof_session";
+const ADMIN_SESSION_COOKIE = "odc_admin_session";
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
+const EMAIL_VERIFICATION_DURATION_MS = 1000 * 60 * 60 * 24;
 const AUTH_WINDOW_MS = 1000 * 60 * 15;
 const AUTH_MAX_ATTEMPTS = 8;
-const SAMPLE_ORDER_STATUSES = new Set(["pending", "processing", "completed"]);
 const CONTACT_MESSAGE_STATUSES = new Set(["unread", "read", "archived"]);
+const PRODUCT_AVAILABILITY_STATUSES = new Set(["available", "unavailable"]);
 const BREVO_API_KEY = String(process.env.BREVO_API_KEY || "").trim();
 const CONTACT_NOTIFICATION_TO = String(process.env.CONTACT_NOTIFICATION_TO || "contact@odyssee.ma").trim();
-const MAIL_FROM = String(process.env.MAIL_FROM || "contact@odyssee.ma").trim();
+const MAIL_FROM = String(process.env.MAIL_FROM || "noreply@odyssee.ma").trim();
 const FRONTEND_ORIGIN = String(process.env.FRONTEND_ORIGIN || "").trim().replace(/\/+$/, "");
+const FRONTEND_REDIRECT_ORIGIN = (
+  FRONTEND_ORIGIN ||
+  String(process.env.PUBLIC_SITE_URL || "").trim().replace(/\/+$/, "") ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:5173")
+);
 const API_ALLOWED_ORIGINS = [
   FRONTEND_ORIGIN,
   ...String(process.env.API_ALLOWED_ORIGINS || "")
@@ -29,6 +36,8 @@ const ADMIN_EMAILS = new Set(
     .map((value) => String(value || "").trim().toLowerCase())
     .filter(Boolean)
 );
+const DEFAULT_ADMIN_USERNAME = String(process.env.ODC_ADMIN_USERNAME || "Admin").trim();
+const DEFAULT_ADMIN_PASSWORD = String(process.env.ODC_ADMIN_PASSWORD || "OdysseeAdmin2026");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -67,13 +76,20 @@ function sanitizeUser(row) {
     profession: row.profession,
     status: row.status,
     role: row.role,
-    sampleLimit: Number.isFinite(Number(row.sample_limit)) ? Math.max(0, Number(row.sample_limit)) : null,
+    emailVerifiedAt: row.email_verified_at || null,
     createdAt: row.created_at
   };
 }
 
-function isAdminUser(user) {
-  return user?.role === "admin";
+function sanitizeAdminUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    status: row.status,
+    createdAt: row.created_at,
+    lastLoginAt: row.last_login_at || null
+  };
 }
 
 function setSessionCookie(res, token) {
@@ -99,8 +115,82 @@ function clearSessionCookie(res) {
   });
 }
 
+function setAdminSessionCookie(res, token) {
+  const isSecure = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+  const sameSite = FRONTEND_ORIGIN ? "none" : "lax";
+  res.cookie(ADMIN_SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite,
+    secure: isSecure,
+    path: "/",
+    maxAge: SESSION_DURATION_MS
+  });
+}
+
+function clearAdminSessionCookie(res) {
+  const isSecure = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+  const sameSite = FRONTEND_ORIGIN ? "none" : "lax";
+  res.clearCookie(ADMIN_SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite,
+    secure: isSecure,
+    path: "/"
+  });
+}
+
 function nowIso() {
   return new Date().toISOString();
+}
+
+function addMillisecondsIso(milliseconds) {
+  return new Date(Date.now() + milliseconds).toISOString();
+}
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function listProductStatusOverrides() {
+  const productRows = db
+    .prepare(`SELECT product_id, status, updated_at FROM product_status_overrides ORDER BY product_id ASC`)
+    .all();
+  const colorwayRows = db
+    .prepare(`
+      SELECT product_id, colorway_id, status, updated_at
+      FROM product_colorway_status_overrides
+      ORDER BY product_id ASC, colorway_id ASC
+    `)
+    .all();
+
+  return {
+    products: productRows.map((row) => ({
+      productId: row.product_id,
+      status: PRODUCT_AVAILABILITY_STATUSES.has(row.status) ? row.status : "available",
+      updatedAt: row.updated_at
+    })),
+    colorways: colorwayRows.map((row) => ({
+      productId: row.product_id,
+      colorwayId: row.colorway_id,
+      status: PRODUCT_AVAILABILITY_STATUSES.has(row.status) ? row.status : "available",
+      updatedAt: row.updated_at
+    }))
+  };
+}
+
+function normalizeProductId(value) {
+  return String(value || "").trim();
+}
+
+function normalizeSourceUrl(value) {
+  try {
+    const parsedUrl = new URL(String(value || "").trim());
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return "";
+    }
+    return parsedUrl.toString();
+  } catch {
+    return "";
+  }
 }
 
 function expiryIso() {
@@ -112,114 +202,6 @@ function listFavoriteProductIds(userId) {
     .prepare(`SELECT product_id FROM professional_favorites WHERE user_id = ? ORDER BY id DESC`)
     .all(userId)
     .map((row) => row.product_id);
-}
-
-function listPendingSampleProductIds(userId) {
-  return db
-    .prepare(`SELECT product_id FROM professional_sample_cart WHERE user_id = ? ORDER BY id DESC`)
-    .all(userId)
-    .map((row) => row.product_id);
-}
-
-function getEffectiveSampleLimit(userOrUserId) {
-  if (userOrUserId && typeof userOrUserId === "object") {
-    const directLimit = Number(userOrUserId.sampleLimit ?? userOrUserId.sample_limit);
-    if (Number.isFinite(directLimit)) {
-      return Math.max(0, Math.floor(directLimit));
-    }
-    if (Number.isInteger(userOrUserId.id) && userOrUserId.id > 0) {
-      return getEffectiveSampleLimit(userOrUserId.id);
-    }
-    return PROFESSIONAL_SAMPLE_LIMIT;
-  }
-
-  const userId = Number(userOrUserId);
-  if (!Number.isInteger(userId) || userId <= 0) {
-    return PROFESSIONAL_SAMPLE_LIMIT;
-  }
-
-  const row = db.prepare(`SELECT sample_limit FROM professional_users WHERE id = ?`).get(userId);
-  const sampleLimit = Number(row?.sample_limit);
-  return Number.isFinite(sampleLimit)
-    ? Math.max(0, Math.floor(sampleLimit))
-    : PROFESSIONAL_SAMPLE_LIMIT;
-}
-
-function sanitizePendingSampleProductIds(userId, productIds) {
-  const normalized = [...new Set(productIds.map((item) => String(item || "").trim()).filter(Boolean))];
-  const requestedIds = new Set(
-    db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ?`).all(userId).map((row) => row.product_id)
-  );
-  const samplesUsed = requestedIds.size;
-  const sampleLimit = getEffectiveSampleLimit(userId);
-  const remainingSlots = Math.max(0, sampleLimit - samplesUsed);
-
-  return normalized
-    .filter((productId) => !requestedIds.has(productId))
-    .slice(0, remainingSlots);
-}
-
-function replacePendingSampleProductIds(userId, productIds) {
-  const sanitized = sanitizePendingSampleProductIds(userId, productIds);
-
-  const replace = db.transaction((items) => {
-    db.prepare(`DELETE FROM professional_sample_cart WHERE user_id = ?`).run(userId);
-    const insert = db.prepare(`INSERT INTO professional_sample_cart (user_id, product_id) VALUES (?, ?)`);
-    items.forEach((productId) => {
-      insert.run(userId, productId);
-    });
-  });
-
-  replace(sanitized);
-  return sanitized;
-}
-
-function listSampleOrders() {
-  const orders = db.prepare(`
-    SELECT
-      o.id,
-      o.user_id,
-      o.phone_snapshot,
-      o.status,
-      o.admin_notes,
-      o.created_at,
-      o.submitted_at,
-      u.first_name,
-      u.last_name,
-      u.email
-    FROM sample_orders o
-    INNER JOIN professional_users u ON u.id = o.user_id
-    ORDER BY o.submitted_at DESC, o.id DESC
-  `).all();
-
-  const itemRows = db.prepare(`
-    SELECT
-      soi.order_id,
-      soi.product_id
-    FROM sample_order_items soi
-    ORDER BY soi.order_id DESC, soi.id ASC
-  `).all();
-
-  const itemsByOrderId = new Map();
-  itemRows.forEach((row) => {
-    const current = itemsByOrderId.get(row.order_id) || [];
-    current.push(row.product_id);
-    itemsByOrderId.set(row.order_id, current);
-  });
-
-  return orders.map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    email: row.email,
-    phone: row.phone_snapshot,
-    status: row.status,
-    adminNotes: row.admin_notes || "",
-    createdAt: row.created_at,
-    submittedAt: row.submitted_at,
-    productIds: itemsByOrderId.get(row.id) || []
-  }));
 }
 
 function listContactMessages() {
@@ -388,27 +370,126 @@ async function sendContactNotificationEmail(contactMessage) {
   return { success: true };
 }
 
+function getRequestOrigin(req) {
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  if (!host) {
+    return "";
+  }
+
+  return `${String(protocol).split(",")[0]}://${String(host).split(",")[0]}`.replace(/\/+$/, "");
+}
+
+function getFrontendRedirectUrl(path = "/") {
+  const base = FRONTEND_REDIRECT_ORIGIN || "";
+  if (!base) {
+    return path;
+  }
+
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function createEmailVerificationToken(userId) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = addMillisecondsIso(EMAIL_VERIFICATION_DURATION_MS);
+
+  db.prepare(`
+    UPDATE professional_email_verifications
+    SET used_at = CURRENT_TIMESTAMP
+    WHERE user_id = ? AND used_at IS NULL
+  `).run(userId);
+
+  db.prepare(`
+    INSERT INTO professional_email_verifications (user_id, token_hash, expires_at)
+    VALUES (?, ?, ?)
+  `).run(userId, tokenHash, expiresAt);
+
+  return { token, expiresAt };
+}
+
+async function sendEmailVerificationEmail({ req, user, token }) {
+  if (!BREVO_API_KEY || !MAIL_FROM) {
+    return { skipped: true };
+  }
+
+  const apiOrigin = getRequestOrigin(req);
+  const verificationUrl = `${apiOrigin}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+  const displayName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "bonjour";
+  const htmlContent = `
+    <div style="margin:0;padding:32px 0;background:#f3ede4;font-family:Arial,'Helvetica Neue',sans-serif;color:#181411;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:640px;max-width:640px;border-collapse:collapse;background:#fffdf8;border:1px solid #e5d8ca;">
+              <tr>
+                <td style="padding:28px 32px 20px;background:#181411;color:#fff8ef;">
+                  <div style="font-family:Georgia,'Times New Roman',serif;font-size:34px;letter-spacing:0.14em;line-height:1;">ODYSSEE</div>
+                  <div style="margin-top:14px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,248,239,0.68);">Confirmation de compte</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:30px 32px 10px;">
+                  <h1 style="margin:0 0 12px;font-size:28px;line-height:1.12;font-weight:500;">Confirmez votre adresse email</h1>
+                  <p style="margin:0;color:#6f665f;font-size:15px;line-height:1.65;">Bonjour ${escapeHtml(displayName)}, confirmez votre adresse email pour activer votre compte Odyssée et enregistrer vos produits favoris.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:18px 32px 28px;">
+                  <a href="${escapeHtml(verificationUrl)}" style="display:inline-block;background:#181411;color:#fff8ef;text-decoration:none;padding:14px 22px;font-size:15px;">Confirmer mon email</a>
+                  <p style="margin:18px 0 0;color:#8a7f75;font-size:13px;line-height:1.55;">Ce lien est valable pendant 24 heures. Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer cet email.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": BREVO_API_KEY
+    },
+    body: JSON.stringify({
+      sender: {
+        email: MAIL_FROM,
+        name: "Odyssée"
+      },
+      to: [
+        {
+          email: user.email,
+          name: displayName
+        }
+      ],
+      subject: "Confirmez votre compte Odyssée",
+      htmlContent
+    })
+  });
+
+  if (!response.ok) {
+    const payload = await response.text().catch(() => "");
+    throw new Error(payload || "Brevo a refusé l’envoi.");
+  }
+
+  return { success: true };
+}
+
 function buildSessionPayload(user) {
-  const sampleRows = db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ? ORDER BY id DESC`).all(user.id);
-  const samplesUsed = sampleRows.length;
-  const sampleLimit = getEffectiveSampleLimit(user);
   const favoriteProductIds = listFavoriteProductIds(user.id);
-  const pendingSampleProductIds = listPendingSampleProductIds(user.id);
 
   return {
     authenticated: true,
     user,
-    sampleLimit,
-    samplesUsed,
-    samplesRemaining: Math.max(0, sampleLimit - samplesUsed),
-    sampleProductIds: sampleRows.map((row) => row.product_id),
-    pendingSampleProductIds,
     favoriteProductIds
   };
 }
 
 function purgeExpiredSessions() {
   db.prepare(`DELETE FROM professional_sessions WHERE expires_at IS NOT NULL AND expires_at <= ?`).run(nowIso());
+  db.prepare(`DELETE FROM admin_sessions WHERE expires_at IS NOT NULL AND expires_at <= ?`).run(nowIso());
 }
 
 function getSession(req) {
@@ -456,32 +537,69 @@ function requireSession(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  const session = getSession(req);
+  const session = getAdminSession(req);
   if (!session) {
     res.status(401).json({ error: "Session administrateur requise." });
     return;
   }
 
-  syncConfiguredAdminRoleByEmail(session.user.email);
-  const user = sanitizeUser(getUserById(session.user.id) || session.user);
-
-  if (user?.status && user.status !== "active") {
-    db.prepare(`DELETE FROM professional_sessions WHERE token = ?`).run(session.token);
-    clearSessionCookie(res);
+  if (session.user.status && session.user.status !== "active") {
+    db.prepare(`DELETE FROM admin_sessions WHERE token = ?`).run(session.token);
+    clearAdminSessionCookie(res);
     res.status(403).json({ error: "Ce compte n’est pas actif." });
     return;
   }
 
-  if (!isAdminUser(user)) {
-    res.status(403).json({ error: "Accès administrateur requis." });
+  req.adminSession = session;
+  next();
+}
+
+function getAdminSession(req) {
+  purgeExpiredSessions();
+  const token = req.cookies?.[ADMIN_SESSION_COOKIE];
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT s.id as session_id, s.token, u.*
+       FROM admin_sessions s
+       JOIN admin_users u ON u.id = s.user_id
+       WHERE s.token = ?
+         AND (s.expires_at IS NULL OR s.expires_at > ?)`
+    )
+    .get(token, nowIso());
+
+  if (!row) return null;
+
+  db
+    .prepare(`UPDATE admin_sessions SET last_seen_at = CURRENT_TIMESTAMP, expires_at = ? WHERE id = ?`)
+    .run(expiryIso(), row.session_id);
+
+  return {
+    token,
+    user: sanitizeAdminUser(row)
+  };
+}
+
+function getAdminUserByUsername(username) {
+  return db.prepare(`SELECT * FROM admin_users WHERE lower(username) = lower(?)`).get(String(username || "").trim());
+}
+
+async function ensureDefaultAdminUser() {
+  if (!DEFAULT_ADMIN_USERNAME || !DEFAULT_ADMIN_PASSWORD) {
     return;
   }
 
-  req.professionalSession = {
-    ...session,
-    user
-  };
-  next();
+  const existing = getAdminUserByUsername(DEFAULT_ADMIN_USERNAME);
+  if (existing) {
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+  db.prepare(`
+    INSERT INTO admin_users (username, password_hash, status)
+    VALUES (?, ?, 'active')
+  `).run(DEFAULT_ADMIN_USERNAME, passwordHash);
 }
 
 function normalizeEmail(email) {
@@ -543,16 +661,75 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/admin-auth/me", (req, res) => {
+  const session = getAdminSession(req);
+  if (!session || session.user.status !== "active") {
+    res.json({ authenticated: false, user: null });
+    return;
+  }
+
+  res.json({
+    authenticated: true,
+    user: session.user
+  });
+});
+
+app.post("/api/admin-auth/login", async (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+
+  if (!assertAuthRateLimit(req, res, username)) {
+    return;
+  }
+
+  if (!username || !password) {
+    res.status(400).json({ error: "Identifiant et mot de passe requis." });
+    return;
+  }
+
+  const user = getAdminUserByUsername(username);
+  if (!user || user.status !== "active") {
+    res.status(401).json({ error: "Identifiants invalides." });
+    return;
+  }
+
+  const passwordOk = await bcrypt.compare(password, user.password_hash);
+  if (!passwordOk) {
+    res.status(401).json({ error: "Identifiants invalides." });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  db.prepare(`DELETE FROM admin_sessions WHERE user_id = ?`).run(user.id);
+  db.prepare(`INSERT INTO admin_sessions (user_id, token, expires_at) VALUES (?, ?, ?)`).run(user.id, token, expiryIso());
+  db.prepare(`UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?`).run(user.id);
+  setAdminSessionCookie(res, token);
+  resetAuthRateLimit(req, username);
+
+  res.json({
+    success: true,
+    authenticated: true,
+    user: sanitizeAdminUser({
+      ...user,
+      last_login_at: new Date().toISOString()
+    })
+  });
+});
+
+app.post("/api/admin-auth/logout", (req, res) => {
+  const token = req.cookies?.[ADMIN_SESSION_COOKIE];
+  if (token) {
+    db.prepare(`DELETE FROM admin_sessions WHERE token = ?`).run(token);
+  }
+  clearAdminSessionCookie(res);
+  res.json({ success: true });
+});
+
 app.get("/api/auth/me", (req, res) => {
   const session = getSession(req);
   if (!session) {
     res.json({
       authenticated: false,
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
-      samplesUsed: 0,
-      samplesRemaining: PROFESSIONAL_SAMPLE_LIMIT,
-      sampleProductIds: [],
-      pendingSampleProductIds: [],
       favoriteProductIds: []
     });
     return;
@@ -566,11 +743,6 @@ app.get("/api/auth/me", (req, res) => {
     clearSessionCookie(res);
     res.json({
       authenticated: false,
-      sampleLimit: PROFESSIONAL_SAMPLE_LIMIT,
-      samplesUsed: 0,
-      samplesRemaining: PROFESSIONAL_SAMPLE_LIMIT,
-      sampleProductIds: [],
-      pendingSampleProductIds: [],
       favoriteProductIds: []
     });
     return;
@@ -617,17 +789,75 @@ app.post("/api/auth/register", async (req, res) => {
   const result = db
     .prepare(
       `INSERT INTO professional_users (first_name, last_name, phone, email, profession, password_hash, status, role)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', 'professional')`
+       VALUES (?, ?, ?, ?, ?, ?, 'pending_email', 'professional')`
     )
     .run(firstName, lastName, phone, email, profession, passwordHash);
   syncConfiguredAdminRoleByEmail(email);
+
+  const user = sanitizeUser(getUserById(result.lastInsertRowid));
+  const { token } = createEmailVerificationToken(user.id);
+  let verificationEmailSent = false;
+  let devVerificationUrl = "";
+
+  try {
+    const emailResult = await sendEmailVerificationEmail({ req, user, token });
+    verificationEmailSent = emailResult.success === true;
+    if (emailResult.skipped && process.env.NODE_ENV !== "production") {
+      devVerificationUrl = `${getRequestOrigin(req)}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+      console.log(`Email verification link for ${email}: ${devVerificationUrl}`);
+    }
+  } catch (error) {
+    console.error("Brevo email verification failed:", error);
+  }
 
   resetAuthRateLimit(req, email);
 
   res.status(201).json({
     success: true,
-    user: sanitizeUser(getUserById(result.lastInsertRowid))
+    verificationRequired: true,
+    verificationEmailSent,
+    ...(devVerificationUrl ? { verificationUrl: devVerificationUrl } : {}),
+    user
   });
+});
+
+app.get("/api/auth/verify-email", (req, res) => {
+  const token = String(req.query?.token || "").trim();
+  const frontendSuccessUrl = getFrontendRedirectUrl("/?emailVerified=1");
+  const frontendExpiredUrl = getFrontendRedirectUrl("/?emailVerified=expired");
+
+  if (!token) {
+    res.redirect(frontendExpiredUrl);
+    return;
+  }
+
+  const tokenHash = hashToken(token);
+  const row = db.prepare(`
+    SELECT v.id as verification_id, v.user_id, v.expires_at, v.used_at, u.email
+    FROM professional_email_verifications v
+    JOIN professional_users u ON u.id = v.user_id
+    WHERE v.token_hash = ?
+  `).get(tokenHash);
+
+  if (!row || row.used_at || row.expires_at <= nowIso()) {
+    res.redirect(frontendExpiredUrl);
+    return;
+  }
+
+  db.prepare(`
+    UPDATE professional_users
+    SET status = CASE WHEN status = 'pending_email' THEN 'active' ELSE status END,
+        email_verified_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(row.user_id);
+
+  db.prepare(`
+    UPDATE professional_email_verifications
+    SET used_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(row.verification_id);
+
+  res.redirect(frontendSuccessUrl);
 });
 
 app.post("/api/auth/login", async (req, res) => {
@@ -647,6 +877,11 @@ app.post("/api/auth/login", async (req, res) => {
   const user = getUserByEmail(email);
   if (!user) {
     res.status(401).json({ error: "Identifiants invalides." });
+    return;
+  }
+
+  if (user.status === "pending_email") {
+    res.status(403).json({ error: "Veuillez confirmer votre adresse email avant de vous connecter." });
     return;
   }
 
@@ -722,98 +957,6 @@ app.post("/api/contact", async (req, res) => {
   });
 });
 
-app.post("/api/samples/checkout", requireSession, (req, res) => {
-  const productIds = Array.isArray(req.body?.productIds)
-    ? [...new Set(req.body.productIds.map((item) => String(item || "").trim()).filter(Boolean))]
-    : [];
-
-  if (!productIds.length) {
-    res.status(400).json({ error: "Aucun échantillon sélectionné." });
-    return;
-  }
-
-  const userId = req.professionalSession.user.id;
-  const sampleLimit = getEffectiveSampleLimit(req.professionalSession.user);
-  const existingRows = db.prepare(`SELECT product_id FROM sample_requests WHERE user_id = ?`).all(userId);
-  const existingProductIds = new Set(existingRows.map((row) => row.product_id));
-
-  const duplicate = productIds.find((productId) => existingProductIds.has(productId));
-  if (duplicate) {
-    res.status(409).json({
-      error: "Au moins un échantillon a déjà été demandé.",
-      sampleLimit,
-      samplesUsed: existingRows.length,
-      samplesRemaining: Math.max(0, sampleLimit - existingRows.length)
-    });
-    return;
-  }
-
-  if (existingRows.length + productIds.length > sampleLimit) {
-    res.status(409).json({
-      error: `Le quota maximum de ${sampleLimit} échantillon${sampleLimit > 1 ? "s" : ""} serait dépassé.`,
-      sampleLimit,
-      samplesUsed: existingRows.length,
-      samplesRemaining: Math.max(0, sampleLimit - existingRows.length)
-    });
-    return;
-  }
-
-  const createOrder = db.transaction((items) => {
-    const orderResult = db
-      .prepare(`INSERT INTO sample_orders (user_id, phone_snapshot, status) VALUES (?, ?, 'pending')`)
-      .run(userId, req.professionalSession.user.phone);
-
-    const orderId = orderResult.lastInsertRowid;
-    const insertOrderItem = db.prepare(`INSERT INTO sample_order_items (order_id, product_id) VALUES (?, ?)`);
-    const insertSampleRequest = db.prepare(`INSERT INTO sample_requests (user_id, product_id) VALUES (?, ?)`);
-
-    items.forEach((productId) => {
-      insertOrderItem.run(orderId, productId);
-      insertSampleRequest.run(userId, productId);
-    });
-
-    return orderId;
-  });
-
-  const orderId = createOrder(productIds);
-  const nextUsed = existingRows.length + productIds.length;
-  const nextPendingSampleProductIds = listPendingSampleProductIds(userId).filter((productId) => !productIds.includes(productId));
-  replacePendingSampleProductIds(userId, nextPendingSampleProductIds);
-
-  res.status(201).json({
-    success: true,
-    orderId,
-    message: "Odyssée vous contactera par téléphone dès que vos échantillons sont disponibles.",
-    sampleLimit,
-    samplesUsed: nextUsed,
-    samplesRemaining: Math.max(0, sampleLimit - nextUsed),
-    sampleProductIds: [...existingProductIds, ...productIds],
-    pendingSampleProductIds: nextPendingSampleProductIds
-  });
-});
-
-app.get("/api/samples/pending", requireSession, (req, res) => {
-  res.json({
-    pendingSampleProductIds: listPendingSampleProductIds(req.professionalSession.user.id)
-  });
-});
-
-app.put("/api/samples/pending", requireSession, (req, res) => {
-  const productIds = Array.isArray(req.body?.productIds)
-    ? req.body.productIds
-    : [];
-
-  const pendingSampleProductIds = replacePendingSampleProductIds(
-    req.professionalSession.user.id,
-    productIds
-  );
-
-  res.json({
-    success: true,
-    pendingSampleProductIds
-  });
-});
-
 app.get("/api/favorites", requireSession, (req, res) => {
   res.json({
     favoriteProductIds: listFavoriteProductIds(req.professionalSession.user.id)
@@ -854,6 +997,14 @@ app.delete("/api/favorites/:productId", requireSession, (req, res) => {
   });
 });
 
+app.get("/api/catalog/product-statuses", (_req, res) => {
+  const statuses = listProductStatusOverrides();
+  res.json({
+    statuses: statuses.products,
+    colorwayStatuses: statuses.colorways
+  });
+});
+
 app.get("/api/admin/professionals", requireAdmin, (_req, res) => {
   const rows = db.prepare(`
     SELECT
@@ -864,12 +1015,8 @@ app.get("/api/admin/professionals", requireAdmin, (_req, res) => {
       u.email,
       u.profession,
       u.status,
-      u.sample_limit,
-      u.created_at,
-      COUNT(sr.id) AS sample_count
+      u.created_at
     FROM professional_users u
-    LEFT JOIN sample_requests sr ON sr.user_id = u.id
-    GROUP BY u.id
     ORDER BY u.created_at DESC, u.id DESC
   `).all();
 
@@ -882,10 +1029,206 @@ app.get("/api/admin/professionals", requireAdmin, (_req, res) => {
       email: row.email,
       profession: row.profession,
       status: row.status || "active",
-      sampleLimit: Number.isFinite(Number(row.sample_limit)) ? Math.max(0, Number(row.sample_limit)) : PROFESSIONAL_SAMPLE_LIMIT,
-      createdAt: row.created_at,
-      sampleCount: row.sample_count
+      createdAt: row.created_at
     }))
+  });
+});
+
+app.delete("/api/admin/professionals/:userId", requireAdmin, (req, res) => {
+  const userId = Number(req.params.userId);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ error: "Compte invalide." });
+    return;
+  }
+
+  const existingUser = db.prepare(`SELECT id FROM professional_users WHERE id = ?`).get(userId);
+  if (!existingUser) {
+    res.status(404).json({ error: "Compte introuvable." });
+    return;
+  }
+
+  db.prepare(`DELETE FROM professional_users WHERE id = ?`).run(userId);
+
+  res.json({
+    success: true,
+    userId
+  });
+});
+
+app.get("/api/admin/product-statuses", requireAdmin, (_req, res) => {
+  const statuses = listProductStatusOverrides();
+  res.json({
+    statuses: statuses.products,
+    colorwayStatuses: statuses.colorways
+  });
+});
+
+app.get("/api/admin/users", requireAdmin, (_req, res) => {
+  const users = db.prepare(`
+    SELECT id, username, status, created_at, last_login_at
+    FROM admin_users
+    ORDER BY created_at DESC, id DESC
+  `).all();
+
+  res.json({
+    users: users.map(sanitizeAdminUser)
+  });
+});
+
+app.post("/api/admin/users", requireAdmin, async (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+
+  if (!username || !password) {
+    res.status(400).json({ error: "Identifiant et mot de passe requis." });
+    return;
+  }
+
+  if (username.length < 3) {
+    res.status(400).json({ error: "Identifiant trop court." });
+    return;
+  }
+
+  if (password.length < 10) {
+    res.status(400).json({ error: "Mot de passe trop court. Minimum 10 caractères." });
+    return;
+  }
+
+  const existing = getAdminUserByUsername(username);
+  if (existing) {
+    res.status(409).json({ error: "Cet identifiant existe déjà." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const result = db.prepare(`
+    INSERT INTO admin_users (username, password_hash, status)
+    VALUES (?, ?, 'active')
+  `).run(username, passwordHash);
+
+  res.status(201).json({
+    success: true,
+    user: sanitizeAdminUser(db.prepare(`
+      SELECT id, username, status, created_at, last_login_at
+      FROM admin_users
+      WHERE id = ?
+    `).get(result.lastInsertRowid))
+  });
+});
+
+app.patch("/api/admin/product-statuses/:productId", requireAdmin, (req, res) => {
+  const productId = normalizeProductId(req.params.productId);
+  const status = String(req.body?.status || "").trim().toLowerCase();
+
+  if (!productId) {
+    res.status(400).json({ error: "Produit invalide." });
+    return;
+  }
+
+  if (!PRODUCT_AVAILABILITY_STATUSES.has(status)) {
+    res.status(400).json({ error: "Statut invalide." });
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO product_status_overrides (product_id, status, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(product_id) DO UPDATE SET
+      status = excluded.status,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(productId, status);
+
+  res.json({
+    success: true,
+    productId,
+    status
+  });
+});
+
+app.patch("/api/admin/product-statuses/:productId/colorways/:colorwayId", requireAdmin, (req, res) => {
+  const productId = normalizeProductId(req.params.productId);
+  const colorwayId = normalizeProductId(req.params.colorwayId);
+  const status = String(req.body?.status || "").trim().toLowerCase();
+
+  if (!productId || !colorwayId) {
+    res.status(400).json({ error: "Coloris invalide." });
+    return;
+  }
+
+  if (!PRODUCT_AVAILABILITY_STATUSES.has(status)) {
+    res.status(400).json({ error: "Statut invalide." });
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO product_colorway_status_overrides (product_id, colorway_id, status, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(product_id, colorway_id) DO UPDATE SET
+      status = excluded.status,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(productId, colorwayId, status);
+
+  res.json({
+    success: true,
+    productId,
+    colorwayId,
+    status
+  });
+});
+
+app.get("/api/admin/product-import-jobs", requireAdmin, (_req, res) => {
+  const jobs = db.prepare(`
+    SELECT id, url, status, message, created_at, updated_at
+    FROM product_import_jobs
+    ORDER BY id DESC
+    LIMIT 50
+  `).all();
+
+  res.json({
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      url: job.url,
+      status: job.status,
+      message: job.message,
+      createdAt: job.created_at,
+      updatedAt: job.updated_at
+    }))
+  });
+});
+
+app.post("/api/admin/product-import-jobs", requireAdmin, (req, res) => {
+  const url = normalizeSourceUrl(req.body?.url);
+
+  if (!url) {
+    res.status(400).json({ error: "Lien produit invalide." });
+    return;
+  }
+
+  const hostname = new URL(url).hostname;
+  const supportedSource = /(^|\.)froca\.com$/i.test(hostname)
+    || /(^|\.)yorkwallcoverings\.com$/i.test(hostname)
+    || /(^|\.)symphonymills\.com$/i.test(hostname);
+  const status = supportedSource ? "queued" : "unsupported";
+  const message = supportedSource
+    ? "Lien reçu. Import automatique à brancher sur le pipeline catalogue."
+    : "Source non supportée pour l'import automatique.";
+  const result = db.prepare(`
+    INSERT INTO product_import_jobs (url, status, message, created_at, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(url, status, message);
+  const timestamp = nowIso();
+
+  res.status(201).json({
+    success: true,
+    job: {
+      id: result.lastInsertRowid,
+      url,
+      status,
+      message,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
   });
 });
 
@@ -900,11 +1243,6 @@ app.patch("/api/admin/professionals/:userId/status", requireAdmin, (req, res) =>
 
   if (!["active", "blocked"].includes(status)) {
     res.status(400).json({ error: "Statut invalide." });
-    return;
-  }
-
-  if (userId === req.professionalSession.user.id && status === "blocked") {
-    res.status(400).json({ error: "Vous ne pouvez pas bloquer votre propre compte administrateur." });
     return;
   }
 
@@ -923,96 +1261,6 @@ app.patch("/api/admin/professionals/:userId/status", requireAdmin, (req, res) =>
     success: true,
     userId,
     status
-  });
-});
-
-app.patch("/api/admin/professionals/:userId/sample-limit", requireAdmin, (req, res) => {
-  const userId = Number(req.params.userId);
-  const sampleLimit = Number(req.body?.sampleLimit);
-
-  if (!Number.isInteger(userId) || userId <= 0) {
-    res.status(400).json({ error: "Compte invalide." });
-    return;
-  }
-
-  if (!Number.isFinite(sampleLimit) || sampleLimit < 0) {
-    res.status(400).json({ error: "Quota invalide." });
-    return;
-  }
-
-  const normalizedSampleLimit = Math.floor(sampleLimit);
-  const existingUser = db.prepare(`SELECT id FROM professional_users WHERE id = ?`).get(userId);
-  if (!existingUser) {
-    res.status(404).json({ error: "Compte introuvable." });
-    return;
-  }
-
-  db.prepare(`UPDATE professional_users SET sample_limit = ? WHERE id = ?`).run(normalizedSampleLimit, userId);
-
-  res.json({
-    success: true,
-    userId,
-    sampleLimit: normalizedSampleLimit
-  });
-});
-
-app.get("/api/admin/sample-orders", requireAdmin, (_req, res) => {
-  res.json({
-    sampleOrders: listSampleOrders()
-  });
-});
-
-app.patch("/api/admin/sample-orders/:orderId", requireAdmin, (req, res) => {
-  const orderId = Number(req.params.orderId);
-  const statusValue = req.body?.status;
-  const adminNotesValue = req.body?.adminNotes;
-
-  if (!Number.isInteger(orderId) || orderId <= 0) {
-    res.status(400).json({ error: "Commande invalide." });
-    return;
-  }
-
-  const existingOrder = db.prepare(`SELECT id FROM sample_orders WHERE id = ?`).get(orderId);
-  if (!existingOrder) {
-    res.status(404).json({ error: "Commande introuvable." });
-    return;
-  }
-
-  const updates = [];
-  const params = [];
-
-  if (statusValue !== undefined) {
-    const normalizedStatus = String(statusValue || "").trim().toLowerCase();
-    if (!SAMPLE_ORDER_STATUSES.has(normalizedStatus)) {
-      res.status(400).json({ error: "Statut invalide." });
-      return;
-    }
-    updates.push("status = ?");
-    params.push(normalizedStatus);
-  }
-
-  if (adminNotesValue !== undefined) {
-    updates.push("admin_notes = ?");
-    params.push(String(adminNotesValue || "").trim());
-  }
-
-  if (!updates.length) {
-    res.status(400).json({ error: "Aucune mise à jour reçue." });
-    return;
-  }
-
-  params.push(orderId);
-  db.prepare(`UPDATE sample_orders SET ${updates.join(", ")} WHERE id = ?`).run(...params);
-
-  const updatedOrder = db
-    .prepare(`SELECT status, admin_notes FROM sample_orders WHERE id = ?`)
-    .get(orderId);
-
-  res.json({
-    success: true,
-    orderId,
-    status: updatedOrder?.status || "pending",
-    adminNotes: updatedOrder?.admin_notes || ""
   });
 });
 
@@ -1048,6 +1296,8 @@ app.patch("/api/admin/contact-messages/:messageId", requireAdmin, (req, res) => 
     status
   });
 });
+
+await ensureDefaultAdminUser();
 
 app.listen(PORT, () => {
   console.log(`ODC API listening on http://localhost:${PORT}`);

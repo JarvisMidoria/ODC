@@ -65,15 +65,54 @@ button, input, textarea, select { font: inherit; }
   font-size: 0.74rem;
 }
 
+.admin-access-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
 .admin-access-card h1 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.4rem);
   line-height: 0.92;
 }
 
+.admin-access-card__logo {
+  width: clamp(220px, 34vw, 340px);
+  height: 92px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.admin-access-card__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+}
+
 .admin-access-card p:last-child {
   margin: 0;
   color: var(--admin-muted);
+}
+
+.admin-access-card label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+}
+
+.admin-access-card input {
+  width: 100%;
+  min-height: 3.05rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--admin-ink);
 }
 
 .admin-shell {
@@ -154,6 +193,12 @@ button, input, textarea, select { font: inherit; }
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.12);
   transform: translateX(2px);
+}
+
+.admin-sidebar__nav a.is-active {
+  color: #fff8ef;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .admin-nav-badge {
@@ -433,6 +478,18 @@ a.admin-button {
   color: #fff;
 }
 
+.admin-button--danger {
+  background: rgba(139, 87, 87, 0.1);
+  border-color: rgba(139, 87, 87, 0.28);
+  color: var(--admin-danger);
+}
+
+.admin-button--danger:hover {
+  background: var(--admin-danger);
+  border-color: var(--admin-danger);
+  color: #fff;
+}
+
 .admin-button:disabled,
 .admin-status-action:disabled,
 .admin-quota-control__button:disabled {
@@ -523,6 +580,56 @@ a.admin-button {
 .admin-table__muted {
   color: var(--admin-muted);
   font-size: 0.8rem;
+}
+
+.admin-product-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-product-toggle span {
+  width: 1.45rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.admin-colorway-row td {
+  background: rgba(255, 251, 245, 0.58);
+}
+
+.admin-colorway-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.admin-colorway-thumb {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 12px;
+  background: #f6f0e8;
+  overflow: hidden;
+}
+
+.admin-colorway-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-status-pill {
@@ -925,6 +1032,22 @@ a.admin-button {
   .admin-main,
   .admin-sidebar {
     padding: 1rem;
+  }
+
+  .admin-access-card__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-access-card__logo {
+    width: min(280px, 100%);
+    height: 78px;
+    justify-content: flex-start;
+  }
+
+  .admin-access-card__logo img {
+    object-position: left center;
   }
 
   .admin-topbar,

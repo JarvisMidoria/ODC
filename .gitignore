@@ -4,3 +4,11 @@ dist/
 tmp-product-overlay.png
 .vercel
 data/
+.cache/
+.playwright-cli/
+.runlogs/
+tmp/
+tmp-*.png
+Odyssee/
+public/custom-assets/odyssee-video-global.mp4
+Odyssée+Logo+design+V2.webp

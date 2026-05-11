@@ -18,6 +18,10 @@ services:
         value: /var/data/odc.sqlite
       - key: FRONTEND_ORIGIN
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
     disk:
       name: odc-auth-data
       mountPath: /var/data

@@ -12,10 +12,14 @@
 - `ODC_API_PORT=10000`
 - `ODC_DB_PATH=/var/data/odc.sqlite`
 - `FRONTEND_ORIGIN=https://odc-preview.vercel.app`
+- `BREVO_API_KEY=<your-brevo-api-key>`
+- `MAIL_FROM=noreply@odyssee.ma`
 
 Optional:
 
 - `API_ALLOWED_ORIGINS=https://www.odyssee.ma,https://another-frontend.example`
+- `PUBLIC_SITE_URL=https://www.odyssee.ma` if email confirmation redirects should use a different frontend URL than `FRONTEND_ORIGIN`
+- `CONTACT_NOTIFICATION_TO=contact@odyssee.ma`
 
 ## Frontend Env Vars
 
