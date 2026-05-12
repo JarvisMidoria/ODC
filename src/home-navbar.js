@@ -1088,7 +1088,7 @@ function replaceFooter() {
             <a href="https://m.facebook.com/www.odyssee.ma/" target="_blank" rel="noreferrer" aria-label="Facebook">
               ${footerIcon("facebook")}
             </a>
-            <a href="https://www.instagram.com/odyssee_maroc?igsh=MTl0cG5sMmZhazAwdw==" target="_blank" rel="noreferrer" aria-label="Instagram">
+            <a href="https://www.instagram.com/odyssee_tissus_maroc?igsh=MTF3NjkxeWg5bDNyOQ==" target="_blank" rel="noreferrer" aria-label="Instagram">
               ${footerIcon("instagram")}
             </a>
             <a href="#" aria-label="X (lien à venir)">
