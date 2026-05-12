@@ -9,6 +9,7 @@ const defaultState = {
 };
 
 let authState = { ...defaultState };
+let sessionRequest = null;
 
 async function readApiPayload(response) {
   const raw = await response.text();
@@ -51,6 +52,20 @@ export async function fetchProfessionalSession() {
   };
   emit();
   return getProfessionalState();
+}
+
+export async function ensureProfessionalSession() {
+  if (authState.authenticated) {
+    return getProfessionalState();
+  }
+
+  if (!sessionRequest) {
+    sessionRequest = fetchProfessionalSession().finally(() => {
+      sessionRequest = null;
+    });
+  }
+
+  return sessionRequest;
 }
 
 export async function registerProfessionalAccount(formData) {

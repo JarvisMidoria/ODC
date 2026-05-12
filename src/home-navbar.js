@@ -29,6 +29,7 @@ import { loadSiteContent } from "./site-content.js";
 import { apiFetch } from "./api-client.js";
 import {
   PROFESSIONAL_AUTH_EVENT,
+  ensureProfessionalSession,
   fetchProfessionalSession,
   getProfessionalState,
   loginProfessionalAccount,
@@ -293,8 +294,10 @@ function favoriteNavIconMarkup() {
   `;
 }
 
-function requestProfessionalFavoriteAccess(selectionKey = "", redirectHref = "") {
-  if (getProfessionalState().authenticated) {
+async function requestProfessionalFavoriteAccess(selectionKey = "", redirectHref = "") {
+  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
+
+  if (professionalState.authenticated) {
     return true;
   }
 
@@ -309,8 +312,10 @@ function requestProfessionalFavoriteAccess(selectionKey = "", redirectHref = "")
   return false;
 }
 
-function requestProfessionalProductAccess(redirectHref = "", reloadAfterLogin = false) {
-  if (getProfessionalState().authenticated) {
+async function requestProfessionalProductAccess(redirectHref = "", reloadAfterLogin = false) {
+  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
+
+  if (professionalState.authenticated) {
     return true;
   }
 
@@ -505,14 +510,16 @@ if (root) {
   });
 
   root.querySelectorAll("[data-odc-favorite-nav]").forEach((link) => {
-    link.addEventListener("click", (event) => {
+    link.addEventListener("click", async (event) => {
       if (getProfessionalState().authenticated) {
         return;
       }
 
       event.preventDefault();
       event.stopPropagation();
-      requestProfessionalFavoriteAccess("", link.getAttribute("href") || "/favoris.html");
+      if (await requestProfessionalFavoriteAccess("", link.getAttribute("href") || "/favoris.html")) {
+        window.location.assign(link.getAttribute("href") || "/favoris.html");
+      }
       setMobileMenuOpen(false);
     });
   });
@@ -531,7 +538,7 @@ if (root) {
     }
   });
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     if (!mobile?.classList.contains("is-open")) {
       return;
     }
@@ -2962,7 +2969,7 @@ function bindProductGridFavoriteInteractions(state) {
   }
 
   state.root.dataset.odcFavoriteClickBound = "true";
-  state.root.addEventListener("click", (event) => {
+  state.root.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null;
     const favoriteButton = target?.closest("[data-odc-card-favorite]");
     if (!(favoriteButton instanceof HTMLButtonElement)) {
@@ -2977,7 +2984,7 @@ function bindProductGridFavoriteInteractions(state) {
       return;
     }
 
-    if (!requestProfessionalFavoriteAccess(selectionKey)) {
+    if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
       return;
     }
 
@@ -3503,12 +3510,12 @@ function closeProductDiscovery(state, overlay) {
   state.isAnimating = false;
 }
 
-function openProductDiscovery(state, overlay, index, trigger, colorwayIndex = 0) {
+async function openProductDiscovery(state, overlay, index, trigger, colorwayIndex = 0) {
   if (index < 0 || index >= state.items.length) {
     return;
   }
 
-  if (!requestProfessionalProductAccess()) {
+  if (!(await requestProfessionalProductAccess())) {
     return;
   }
 
@@ -3670,7 +3677,7 @@ async function enableProductDiscoveryOverlay() {
     }
   }, true);
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null;
 
     if (!target) {
@@ -3689,7 +3696,7 @@ async function enableProductDiscoveryOverlay() {
       event.preventDefault();
       event.stopImmediatePropagation();
       const href = overlayLink.getAttribute("data-odc-target-href");
-      if (!requestProfessionalProductAccess(href || "/produits")) {
+      if (!(await requestProfessionalProductAccess(href || "/produits"))) {
         return;
       }
       if (href) {
@@ -3707,7 +3714,7 @@ async function enableProductDiscoveryOverlay() {
       const selectionKey = getProductSelectionKey(product, colorway);
 
       if (selectionKey) {
-        if (!requestProfessionalFavoriteAccess(selectionKey)) {
+        if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
           return;
         }
 
@@ -4131,7 +4138,7 @@ function renderLocalProductDetail(root, product, state) {
   root.innerHTML = buildLocalProductDetailMarkup(product, state);
 }
 
-function enableLocalProductDetail() {
+async function enableLocalProductDetail() {
   if (!isProductDetailPath()) {
     return;
   }
@@ -4144,7 +4151,9 @@ function enableLocalProductDetail() {
     return;
   }
 
-  if (!getProfessionalState().authenticated) {
+  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
+
+  if (!professionalState.authenticated) {
     root.dataset.odcLocalDetailReady = "true";
     root.innerHTML = `
       <section class="odc-product-access-wall" aria-live="polite">
@@ -4233,7 +4242,7 @@ function enableLocalProductDetail() {
 
   syncProfessionalProductDetail();
 
-  root.addEventListener("click", (event) => {
+  root.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null;
 
     if (!target) {
@@ -4305,7 +4314,7 @@ function enableLocalProductDetail() {
       event.preventDefault();
       const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
       const selectionKey = getProductSelectionKey(product, colorway);
-      if (!requestProfessionalFavoriteAccess(selectionKey)) {
+      if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
         return;
       }
 
