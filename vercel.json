@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://odc-auth-api.onrender.com/api/$1"
+    },
+    {
       "source": "/custom-assets/(.*)",
       "destination": "/public/custom-assets/$1"
     },
