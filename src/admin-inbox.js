@@ -126,20 +126,20 @@ async function loadAdminAccess() {
   render();
 
   try {
-    const response = await apiFetch("/api/auth/me");
+    const response = await apiFetch("/api/admin-auth/me");
     if (!response.ok) {
       throw new Error("Impossible de vérifier la session administrateur.");
     }
 
     const payload = await response.json();
     if (!payload?.authenticated) {
-      state.accessError = "Connexion administrateur requise.";
+      state.accessError = "Connexion administrateur requise. Connectez-vous au back office puis revenez dans l’inbox.";
       state.accessLoaded = true;
       render();
       return;
     }
 
-    if (payload?.user?.role !== "admin") {
+    if (payload?.user?.status && payload.user.status !== "active") {
       state.accessError = "Accès administrateur requis.";
       state.accessLoaded = true;
       render();
@@ -244,6 +244,7 @@ function render() {
           <p class="admin-access-card__eyebrow">Inbox</p>
           <h1>Accès refusé</h1>
           <p>${escapeHtml(state.accessError || "Accès administrateur requis.")}</p>
+          <a class="admin-button admin-button--primary" href="/admin.html">Se connecter au back office</a>
         </section>
       </div>
     `;
