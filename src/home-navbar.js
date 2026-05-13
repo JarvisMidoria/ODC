@@ -103,7 +103,7 @@ const showroomAccordionItems = [
 const partnerLogos = [
   {
     alt: "Clarke & Clarke",
-    href: "https://www.clarkeclarke.com/",
+    href: "https://www.clarkeandclarke.design/",
     src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-8f6dd1cf-4d96-4315-aabd-de364e9749b5-clarke-clarke-logo.png",
     width: "104px",
     height: "24px",
@@ -169,7 +169,7 @@ const partnerLogos = [
   },
   {
     alt: "Alessandro Bini",
-    href: "https://www.alessandrobini.com/",
+    href: "https://www.alessandrobini.com/en/",
     src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-48718919-f382-4a0e-9407-3bee26450840-alessandrobini-1.png",
     width: "96px",
     height: "24px",
@@ -191,7 +191,7 @@ const partnerLogos = [
   },
   {
     alt: "Pedroso & osorio",
-    href: "https://pedrosoosorio.com/",
+    href: "https://pedrosoeosorio.pt/en/pedroso-osorio/",
     src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-0c8a5054-359f-484f-a42e-dcf45ce7c9c2-screenshot_2025-03-13_at_18.31.50-removebg-preview.png",
     width: "108px",
     height: "22px",
