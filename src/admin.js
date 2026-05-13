@@ -22,6 +22,8 @@ const state = {
   accounts: [],
   accountsSearch: "",
   accountsDeleting: new Set(),
+  contactMessagesLoaded: false,
+  contactMessages: [],
   importJobsLoaded: false,
   importJobs: [],
   importUrl: "",
@@ -103,6 +105,10 @@ function getAccountStatusClass(status) {
   if (status === "blocked") return "blocked";
   if (status === "pending_email") return "pending";
   return "active";
+}
+
+function getUnreadContactMessageCount() {
+  return state.contactMessages.filter((message) => message.status === "unread").length;
 }
 
 function getColorwayPreviewUrl(colorway) {
@@ -222,6 +228,10 @@ function renderSidebar() {
             ${view.id === "users" && state.adminUsersLoaded ? `<span class="admin-nav-badge">${state.adminUsers.length}</span>` : ""}
           </a>
         `).join("")}
+        <a href="/admin-inbox.html">
+          Inbox
+          ${state.contactMessagesLoaded ? `<span class="admin-nav-badge">${getUnreadContactMessageCount()}</span>` : ""}
+        </a>
       </nav>
       <div class="admin-sidebar__actions">
         <button class="admin-button" type="button" data-admin-logout>Déconnexion</button>
@@ -256,16 +266,18 @@ function renderTopbar() {
 
 function renderOverview() {
   const unavailableCount = getUnavailableProductCount();
+  const unreadContactMessageCount = getUnreadContactMessageCount();
   return `
     <section class="admin-overview-grid">
       <div class="admin-overview-lead">
         <span>Back office simplifié</span>
-        <strong>3 actions utiles, rien de plus.</strong>
+        <strong>Les actions utiles, au même endroit.</strong>
       </div>
       <div class="admin-stat"><span>Produits</span><strong>${getTotalProductCount()}</strong></div>
       <div class="admin-stat"><span>Indisponibles</span><strong>${unavailableCount}</strong></div>
       <div class="admin-stat"><span>Comptes client</span><strong>${state.accountsLoaded ? state.accounts.length : "—"}</strong></div>
       <div class="admin-stat"><span>Comptes Odyssée</span><strong>${state.adminUsersLoaded ? state.adminUsers.length : "—"}</strong></div>
+      <a class="admin-stat admin-stat--link" href="/admin-inbox.html"><span>Messages non lus</span><strong>${state.contactMessagesLoaded ? unreadContactMessageCount : "—"}</strong></a>
     </section>
   `;
 }
@@ -641,7 +653,7 @@ async function loadAccess() {
     state.accessLoaded = true;
     state.accessAllowed = true;
     render();
-    await Promise.all([loadProductStatuses(), loadAccounts(), loadImportJobs(), loadAdminUsers()]);
+    await Promise.all([loadProductStatuses(), loadAccounts(), loadContactMessages(), loadImportJobs(), loadAdminUsers()]);
   } catch (error) {
     state.accessLoaded = true;
     state.accessAllowed = false;
@@ -671,7 +683,7 @@ async function loginAdmin() {
     state.accessAllowed = true;
     state.loginPassword = "";
     render();
-    await Promise.all([loadProductStatuses(), loadAccounts(), loadImportJobs(), loadAdminUsers()]);
+    await Promise.all([loadProductStatuses(), loadAccounts(), loadContactMessages(), loadImportJobs(), loadAdminUsers()]);
   } catch (error) {
     state.accessAllowed = false;
     state.accessError = error.message || "Connexion impossible.";
@@ -720,6 +732,22 @@ async function loadAccounts() {
     render();
   } catch (error) {
     state.notice = error.message || "Impossible de charger les comptes.";
+    render();
+  }
+}
+
+async function loadContactMessages() {
+  try {
+    const response = await apiFetch("/api/admin/contact-messages");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Chargement impossible.");
+    }
+    state.contactMessages = payload.messages || [];
+    state.contactMessagesLoaded = true;
+    render();
+  } catch (error) {
+    state.notice = error.message || "Impossible de charger les messages.";
     render();
   }
 }
@@ -790,7 +818,7 @@ async function refreshActiveView() {
   } else if (state.activeView === "users") {
     await loadAdminUsers();
   } else {
-    await loadProductStatuses();
+    await Promise.all([loadProductStatuses(), loadContactMessages()]);
   }
 }
 

@@ -47,6 +47,12 @@ function getSelectedMessage(messages) {
   return selected || messages[0] || null;
 }
 
+function getStatusLabel(status) {
+  if (status === "read") return "Lu";
+  if (status === "archived") return "Archivé";
+  return "Non lu";
+}
+
 function renderList(messages, selectedMessage) {
   if (state.messagesError) {
     return `<div class="admin-table__empty">${escapeHtml(state.messagesError)}</div>`;
@@ -70,7 +76,7 @@ function renderList(messages, selectedMessage) {
         >
           <div class="admin-inbox-list__topline">
             <strong>${escapeHtml(message.name)}</strong>
-            <span class="admin-status-pill admin-status-pill--${escapeHtml(message.status)}">${escapeHtml(message.status)}</span>
+            <span class="admin-status-pill admin-status-pill--${escapeHtml(message.status)}">${escapeHtml(getStatusLabel(message.status))}</span>
           </div>
           <span class="admin-inbox-list__subject">${escapeHtml(message.subject)}</span>
           <span class="admin-inbox-list__meta">${escapeHtml(message.email)}${message.phone ? ` • ${escapeHtml(message.phone)}` : ""}</span>
@@ -94,7 +100,7 @@ function renderDetail(message) {
           <p class="admin-kicker">Inbox</p>
           <h2>${escapeHtml(message.subject)}</h2>
         </div>
-        <span class="admin-status-pill admin-status-pill--${escapeHtml(message.status)}">${escapeHtml(message.status)}</span>
+        <span class="admin-status-pill admin-status-pill--${escapeHtml(message.status)}">${escapeHtml(getStatusLabel(message.status))}</span>
       </div>
 
       <div class="admin-inbox-detail__meta">
