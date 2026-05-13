@@ -1,5 +1,5 @@
 export const site = {
-  phone: "+212 522 612 612",
+  phone: "+212 5223-69923",
   email: "contact@odyssee.ma",
   logo: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-26b698d0-377c-47da-b63d-ee96b92af221-odysse-e-logo-design-v2.png",
   navigation: [

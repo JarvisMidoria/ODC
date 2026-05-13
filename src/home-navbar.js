@@ -68,8 +68,8 @@ const showroomAccordionItems = [
   {
     city: "Casablanca",
     address: "1, Avenue Dr Mohamed Sijelmassi (ex Avenue du Phare)",
-    phoneLabel: "05 22 612 612",
-    phoneHref: "tel:+212522612612",
+    phoneLabel: "+212 5223-69923",
+    phoneHref: "tel:+212522369923",
     email: "contact@odyssee.ma",
     mapHref: "https://maps.google.com/?q=33.592222,-7.641667",
     mapEmbed: "https://www.google.com/maps?q=33.592222,-7.641667&z=17&output=embed",
@@ -79,8 +79,8 @@ const showroomAccordionItems = [
   {
     city: "Rabat",
     address: "10, Avenue du 16 Novembre - Quartier Agdal",
-    phoneLabel: "05 22 612 612",
-    phoneHref: "tel:+212522612612",
+    phoneLabel: "+212 5223-69923",
+    phoneHref: "tel:+212522369923",
     email: "contact@odyssee.ma",
     mapHref: "https://maps.google.com/?q=33.9913771,-6.8488065",
     mapEmbed: "https://www.google.com/maps?q=33.9913771,-6.8488065&z=17&output=embed",
@@ -90,8 +90,8 @@ const showroomAccordionItems = [
   {
     city: "Tanger",
     address: "5-6 angle Rue Ibnou Zaidoune et rue Kortoba",
-    phoneLabel: "05 22 612 612",
-    phoneHref: "tel:+212522612612",
+    phoneLabel: "+212 5223-69923",
+    phoneHref: "tel:+212522369923",
     email: "contact@odyssee.ma",
     mapHref: "https://maps.google.com/?q=35.7833128,-5.8235286",
     mapEmbed: "https://www.google.com/maps?q=35.7833128,-5.8235286&z=17&output=embed",
@@ -578,7 +578,7 @@ function ensureSharedContactModal() {
             </label>
             <label>
               Téléphone
-              <input type="tel" name="phone" placeholder="+212 522 612 612" />
+              <input type="tel" name="phone" placeholder="+212 5223-69923" />
             </label>
             <label>
               Sujet
@@ -613,7 +613,7 @@ function ensureSharedContactModal() {
           <h3>Coordonnées</h3>
           <ul class="odc-contract-modal__list">
             <li><strong>Email</strong><span>contact@odyssee.ma</span></li>
-            <li><strong>Téléphone</strong><span>+212 522 612 612</span></li>
+            <li><strong>Téléphone</strong><span>+212 5223-69923</span></li>
             <li><strong>Casablanca</strong><span>1, Avenue Dr Mohamed Sijelmassi</span></li>
             <li><strong>Rabat</strong><span>10, Avenue du 16 Novembre - Quartier Agdal</span></li>
             <li><strong>Tanger</strong><span>5-6 angle Rue Ibnou Zaidoune et rue Kortoba - Res. Dar Baida IV</span></li>
@@ -1065,7 +1065,7 @@ function replaceFooter() {
             </li>
             <li>
               <span class="odc-footer__icon">${footerIcon("phone")}</span>
-              <a href="tel:+212522612612">05 22 612 612</a>
+              <a href="tel:+212522369923">+212 5223-69923</a>
             </li>
             <li>
               <span class="odc-footer__icon">${footerIcon("pin")}</span>

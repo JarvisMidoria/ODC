@@ -270,6 +270,19 @@ async function sendContactNotificationEmail(contactMessage) {
 
   const subjectLabel = subjectLabelMap[contactMessage.subject] || contactMessage.subject || "Nouveau message";
   const escapedMessage = escapeHtml(contactMessage.message).replace(/\n/g, "<br />");
+  const textContent = [
+    "Nouveau message entrant Odyssée",
+    "",
+    `Sujet: ${subjectLabel}`,
+    `Nom: ${contactMessage.name}`,
+    `Email: ${contactMessage.email}`,
+    `Téléphone: ${contactMessage.phone || "Non renseigné"}`,
+    `Secteur: ${contactMessage.sector || "—"}`,
+    `Source: ${contactMessage.source || "contact-page"}`,
+    "",
+    "Message:",
+    contactMessage.message
+  ].join("\n");
   const htmlContent = `
     <div style="margin:0;padding:32px 0;background:#f3ede4;font-family:Arial,'Helvetica Neue',sans-serif;color:#181411;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
@@ -358,6 +371,7 @@ async function sendContactNotificationEmail(contactMessage) {
         name: contactMessage.name
       },
       subject: `[Odyssée] ${subjectLabel}`,
+      textContent,
       htmlContent
     })
   });

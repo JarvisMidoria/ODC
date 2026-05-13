@@ -22,6 +22,8 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
+      - key: CONTACT_NOTIFICATION_TO
+        value: contact@odyssee.ma
     disk:
       name: odc-auth-data
       mountPath: /var/data
