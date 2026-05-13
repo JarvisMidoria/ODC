@@ -41,7 +41,7 @@ if (root) {
             <article><span>Résistance lumière</span><strong>${product.lightfastness}</strong></article>
           </div>
           <div class="hero__actions">
-            <a class="button button--primary" href="/contacter.html">Demander un devis</a>
+            <a class="button button--primary" href="/?contact=1">Demander un devis</a>
             <a class="button button--ghost" href="/produits.html">Retour au catalogue</a>
           </div>
         </div>

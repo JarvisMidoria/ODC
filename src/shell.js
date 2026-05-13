@@ -9,7 +9,7 @@ const pageMap = {
   contract: "/contract.html",
   histoire: "/histoire.html",
   showrooms: "/showrooms.html",
-  contact: "/contacter.html"
+  contact: "/?contact=1"
 };
 
 function renderHeader(page) {
@@ -33,12 +33,12 @@ function renderHeader(page) {
         <nav class="site-nav" aria-label="Navigation principale">
           ${nav}
         </nav>
-        <a class="site-cta" href="/contacter.html">Prendre contact</a>
+        <a class="site-cta" href="/?contact=1">Prendre contact</a>
       </div>
       <div id="mobile-nav" class="mobile-nav">
         <nav aria-label="Navigation mobile">
           ${nav}
-          <a class="site-cta site-cta--mobile" href="/contacter.html">Prendre contact</a>
+          <a class="site-cta site-cta--mobile" href="/?contact=1">Prendre contact</a>
         </nav>
       </div>
     </header>

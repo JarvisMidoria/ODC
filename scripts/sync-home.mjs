@@ -13,7 +13,6 @@ const aliasMap = {
   "contract/index.html": "/contract.html",
   "histoire/index.html": "/histoire.html",
   "showroons/index.html": "/showrooms.html",
-  "contacter/index.html": "/contacter.html",
   "cart/index.html": "https://www.odyssee.ma/cart"
 };
 

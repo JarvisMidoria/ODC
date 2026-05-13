@@ -1,4 +1,16 @@
 {
+  "redirects": [
+    {
+      "source": "/contacter",
+      "destination": "/?contact=1",
+      "permanent": false
+    },
+    {
+      "source": "/contacter.html",
+      "destination": "/?contact=1",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

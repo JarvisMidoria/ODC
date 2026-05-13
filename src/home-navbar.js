@@ -1552,6 +1552,14 @@ function enableContractContactModal() {
     button.addEventListener("click", openModal);
   });
 
+  const contactParam = new URLSearchParams(window.location.search).get("contact");
+  if (contactParam === "1" && modal.dataset.odcContactParamHandled !== "true") {
+    modal.dataset.odcContactParamHandled = "true";
+    openModal();
+    const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", cleanUrl);
+  }
+
   closeButtons.forEach((button) => {
     if (button.dataset.odcContractCloseReady === "true") {
       return;
@@ -2003,7 +2011,7 @@ function buildLocalCartMarkup() {
           </div>
           <p class="odc-cart-summary__note">${professionalState.authenticated ? "Les prix sont visibles dans votre espace professionnel. La finalisation se fait ensuite avec l’équipe Odyssée." : "Les tarifs sont communiques sur demande. La finalisation se fait ensuite avec l’equipe Odyssée."}</p>
           <div class="odc-cart-summary__actions">
-            <a class="odc-cart-button odc-cart-button--primary" href="/contacter.html">Prendre contact</a>
+            <button class="odc-cart-button odc-cart-button--primary" type="button" data-contract-contact-open>Prendre contact</button>
             <a class="odc-cart-button" href="/produits">Continuer mes achats</a>
             <button class="odc-cart-button odc-cart-button--ghost" type="button" data-odc-cart-clear>Vider le panier</button>
           </div>

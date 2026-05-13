@@ -7,7 +7,7 @@ function collectHtmlFiles(directory, relative = "") {
   const files = {};
 
   for (const entry of entries) {
-    if (["dist", "node_modules", ".git", ".vercel", "Odyssee", "tmp"].includes(entry)) {
+    if (["dist", "node_modules", ".git", ".vercel", "Odyssee", "tmp", "docs"].includes(entry)) {
       continue;
     }
 

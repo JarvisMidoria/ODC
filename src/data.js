@@ -8,8 +8,7 @@ export const site = {
     { href: "/ambiances.html", label: "Ambiances" },
     { href: "/contract.html", label: "Contract" },
     { href: "/histoire.html", label: "Histoire" },
-    { href: "/showrooms.html", label: "Showrooms" },
-    { href: "/contacter.html", label: "Contact" }
+    { href: "/showrooms.html", label: "Showrooms" }
   ],
   addresses: [
     {
