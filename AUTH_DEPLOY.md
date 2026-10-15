@@ -5,8 +5,8 @@
 - Les fiches, coloris et modales produit sont publics. Il n'y a plus de compte visiteur.
 - Les favoris sont stockés dans `localStorage`, avec la clé historique `odc-favorites-v1`, par produit et coloris. Ils persistent dans ce navigateur et se synchronisent entre ses onglets. Ils ne se synchronisent pas entre appareils et peuvent disparaître si le stockage du site est effacé. Si le navigateur refuse le stockage, la sélection reste utilisable pendant la visite.
 - `POST /api/contact` est une fonction Node Vercel autonome. Elle transmet le message à la boîte de contact par le relais SMTP Brevo en TLS. Elle ne stocke pas de nouvelle base clients ni de boîte de réception dans Render.
-- Les anciens écrans d'administration affichent une notice. Les anciennes sources serveur sont conservées pour l'archivage et le retour arrière, mais exclues des déploiements Vercel.
-- Les disponibilités sont chargées depuis `public/catalog-statuses.json`. Le fichier livré pour la préversion indique explicitement que les disponibilités de production n'ont pas encore été exportées. La production utilisait déjà les valeurs du catalogue en repli, puisque l'API Render renvoyait HTTP 503. Le nouvel affichage conserve ce repli. Il faudra récupérer et réintégrer les anciens ajustements de disponibilité à partir de l'archive avant toute suppression du disque Render.
+- Les anciennes adresses d’administration redirigent vers le nouveau Studio Sanity `/admin/` (voir CMS_DEPLOY.md). Les anciennes sources serveur sont conservées pour l'archivage et le retour arrière, mais exclues des déploiements Vercel.
+- Les disponibilités sont désormais gérées dans Sanity, par produit et coloris. Le fichier historique `public/catalog-statuses.json` reste une référence d’archivage ; les disponibilités de production Render n’ont pas encore été exportées. La production utilisait déjà les valeurs du catalogue en repli, puisque l'API Render renvoyait HTTP 503. Le nouvel affichage conserve ce repli. Il faudra récupérer et réintégrer les anciens ajustements de disponibilité à partir de l'archive avant toute suppression du disque Render.
 
 ## Configuration du formulaire
 
@@ -83,7 +83,7 @@ L'outil n'écrit pas dans la source et refuse d'écraser un dossier d'archive ex
 - `manifest.json`, avec inventaire des tables, colonnes, volumes, résultat du contrôle d'intégrité et empreinte SHA-256 ;
 - `catalog-statuses.json`, contenant uniquement les disponibilités publiques, sans comptes ni messages.
 
-Les archives sont privées (dossier 0700, fichiers 0600), ignorées par Git et exclues de Vercel. Seul le fichier de disponibilités peut être copié vers `public/catalog-statuses.json`, **après vérification que sa source est bien `render-production`**. Conserver une seconde copie sécurisée de l'archive complète et vérifier la restauration et les volumes avant de supprimer quoi que ce soit chez Render.
+Les archives sont privées (dossier 0700, fichiers 0600), ignorées par Git et exclues de Vercel. Seules les disponibilités publiques pourront être réintégrées dans Sanity, par identifiant historique, **après vérification que leur source est bien `render-production`**. Ne pas écraser les ajustements ultérieurs de l’équipe dans Sanity. Conserver une seconde copie sécurisée de l'archive complète et vérifier la restauration et les volumes avant de supprimer quoi que ce soit chez Render.
 
 ## Vérification et bascule
 
@@ -104,7 +104,7 @@ npm run build
 
 Le retrait des comptes et du serveur Render n'efface pas les factures impayées de l'ancien workspace.
 
-## État de livraison au 15 octobre 2026
+## Historique de livraison avant Sanity au 15 octobre 2026
 
 - Branche source : `codex/public-catalog-local-favorites` ; l'ancienne branche Render est conservée.
 - Préversion vérifiée : `https://odc-preview-65ydmtmof-jarvismidorias-projects.vercel.app`.
