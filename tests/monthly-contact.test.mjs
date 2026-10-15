@@ -13,6 +13,7 @@ test("monthly test authenticates, fails closed outside production, and requires 
     const res = {
       headers: {}, setHeader(k, v) { this.headers[k] = v; },
       status(code) { this.code = code; return this; },
+      end() { return this; },
       json(body) { this.body = body; return this; }
     };
     await monthlyTest({ method, headers: { authorization }, query }, res);
@@ -25,7 +26,7 @@ test("monthly test authenticates, fails closed outside production, and requires 
     let mail;
     nodemailer.createTransport = options => {
       assert.equal(options.requireTLS, true);
-      return { sendMail: async value => {
+      return { verify: async () => true, sendMail: async value => {
         sends++; mail = value;
         return { messageId: "test", accepted: ["contact@odyssee.ma"] };
       } };
@@ -46,6 +47,8 @@ test("monthly test authenticates, fails closed outside production, and requires 
     delete process.env.BREVO_SMTP_PASSWORD;
     assert.equal((await request()).code, 503);
     process.env.BREVO_SMTP_PASSWORD = "password";
+    assert.equal(sends, 0);
+    assert.equal((await request({ method: "HEAD" })).code, 204);
     assert.equal(sends, 0);
     let successLog;
     console.info = (...args) => { successLog = args; };

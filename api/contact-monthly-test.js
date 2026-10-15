@@ -7,8 +7,8 @@ function reply(res, status, body) {
 }
 
 export default async function monthlyTest(req, res) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
+  if (!["GET", "HEAD"].includes(req.method)) {
+    res.setHeader("Allow", "GET, HEAD");
     return reply(res, 405, { success: false });
   }
   const secret = process.env.CRON_SECRET;
@@ -26,6 +26,12 @@ export default async function monthlyTest(req, res) {
   const checkedAt = new Date().toISOString();
   try {
     const transport = createContactTransport(config);
+    if (req.method === "HEAD") {
+      // Daily monitoring checks authentication without submitting an email.
+      await transport.verify();
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(204).end();
+    }
     const result = await transport.sendMail({
       from: { name: "Odyssée", address: config.sender },
       to: [{ address: config.recipient }],
