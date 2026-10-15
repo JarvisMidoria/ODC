@@ -1,33 +1,91 @@
-# Auth Deployment Notes
+# Odyssée — catalogue public et retrait progressif de Render
 
-## Target Setup
+## Fonctionnement de la nouvelle version
 
-- Frontend static site on Vercel
-- Auth/API service on Render
-- SQLite stored on a Render persistent disk
+- Les fiches, coloris et modales produit sont publics. Il n'y a plus de compte visiteur.
+- Les favoris sont stockés dans `localStorage`, avec la clé historique `odc-favorites-v1`, par produit et coloris. Ils persistent dans ce navigateur et se synchronisent entre ses onglets. Ils ne se synchronisent pas entre appareils et peuvent disparaître si le stockage du site est effacé. Si le navigateur refuse le stockage, la sélection reste utilisable pendant la visite.
+- `POST /api/contact` est une fonction Node Vercel autonome. Elle transmet le message à la boîte de contact par le relais SMTP Brevo en TLS. Elle ne stocke pas de nouvelle base clients ni de boîte de réception dans Render.
+- Les anciens écrans d'administration affichent une notice. Les anciennes sources serveur sont conservées pour l'archivage et le retour arrière, mais exclues des déploiements Vercel.
+- Les disponibilités sont chargées depuis `public/catalog-statuses.json`. Le fichier livré pour la préversion indique explicitement que les disponibilités de production n'ont pas encore été exportées. Il faut le remplacer par l'export de production avant une bascule qui doit conserver toutes les disponibilités.
 
-## Backend Env Vars
+## Configuration du formulaire
 
-- `NODE_ENV=production`
-- `ODC_API_PORT=10000`
-- `ODC_DB_PATH=/var/data/odc.sqlite`
-- `FRONTEND_ORIGIN=https://odc-preview.vercel.app`
-- `BREVO_API_KEY=<your-brevo-api-key>`
-- `MAIL_FROM=noreply@odyssee.ma`
+Variables **serveur uniquement**, jamais préfixées par `VITE_` :
 
-Optional:
+- `BREVO_SMTP_USER` : identifiant SMTP indiqué par Brevo.
+- `BREVO_SMTP_PASSWORD` : clé dédiée « Odyssee - formulaire contact Vercel », stockée comme secret Vercel.
+- `MAIL_FROM` : expéditeur Brevo déjà validé (`noreply@odyssee.ma` dans la configuration initiale).
+- `CONTACT_NOTIFICATION_TO=contact@odyssee.ma`.
+- `CONTACT_SITE_ORIGIN` : origine supplémentaire exacte, facultative. Les domaines Odyssée et l'URL propre au déploiement Vercel sont autorisés automatiquement.
+- `CONTACT_VERIFY_ONLY=1` : **uniquement en préversion ou en local**. Le formulaire valide les champs et vérifie l'authentification SMTP, sans soumettre de message. Son texte de succès précise qu'aucun email n'a été envoyé. Cette variable doit être absente en production ; le serveur refuse d'annoncer un succès si elle est activée en production.
 
-- `API_ALLOWED_ORIGINS=https://www.odyssee.ma,https://another-frontend.example`
-- `PUBLIC_SITE_URL=https://www.odyssee.ma` if email confirmation redirects should use a different frontend URL than `FRONTEND_ORIGIN`
-- `CONTACT_NOTIFICATION_TO=contact@odyssee.ma`
+La clé SMTP est dédiée au formulaire et sans expiration programmée, à la demande du propriétaire. Brevo peut cependant désactiver une clé après 90 jours sans envoi réussi. La clé de l'ancienne API et le filtrage IP de cette API ne sont pas utilisés par le nouveau formulaire. Aucun réglage de filtrage IP Brevo n'a été désactivé.
 
-## Frontend Env Vars
+L'envoi est attendu avant la réponse HTTP. Le serveur ne renvoie le succès qu'après acceptation du destinataire par le relais SMTP. En cas d'erreur ou de délai dépassé, le formulaire conserve le message et propose l'adresse de contact. Les logs n'incluent ni identifiants SMTP ni contenu des messages. La limite de requêtes en mémoire est une protection par instance, pas une limite globale garantie entre toutes les fonctions Vercel.
 
-- `VITE_API_BASE_URL=https://<your-render-service>.onrender.com`
+Pour travailler localement, copier `.env.example` vers `.env.local`, renseigner les identifiants côté serveur et lancer `npm run dev`. Le middleware de développement utilise exactement la même fonction que Vercel. Il n'y a plus de proxy de l'API vers Render.
 
-## Important Notes
+## Sauvegarder les anciennes données avant toute suppression de Render
 
-- Cross-origin auth cookies require `credentials: include` on the frontend and `SameSite=None; Secure` on the backend.
-- The backend now switches to cross-origin cookie mode automatically when `FRONTEND_ORIGIN` is set.
-- Render persistent disk is required if you keep SQLite.
-- For multi-instance scaling or stricter resilience, migrate SQLite to Postgres later.
+**Ne pas supprimer le service Render, son disque, ses clés ou sa base à ce stade.** Le service est suspendu pour impayés et son shell n'est pas accessible. La copie locale n'est pas une sauvegarde de production. Sept snapshots du disque étaient visibles le 15 octobre 2026, dont un du jour, mais ils n'ont pas été exportés.
+
+Une copie locale cohérente de l'ancienne base est conservée dans `data/archives/local-before-public-catalog-verified/`. Elle inclut les 14 tables présentes localement. Son inventaire et son empreinte sont dans `manifest.json`. Elle ne prouve pas que les derniers clients ou messages de production sont récupérés.
+
+Après rétablissement de l'accès au **service ordinaire avec son disque**, faire une sauvegarde SQLite en ligne. Ne pas utiliser un shell éphémère sans disque et ne pas simplement copier le fichier `.sqlite` d'une base en WAL en oubliant ses fichiers associés.
+
+Exemple à exécuter dans le shell du service existant, depuis son répertoire de projet :
+
+```sh
+node --input-type=module <<'JS'
+import Database from 'better-sqlite3';
+import { resolve } from 'node:path';
+import { chmodSync } from 'node:fs';
+const source = resolve(process.env.ODC_DB_PATH || resolve(process.cwd(), 'data', 'odc.sqlite'));
+const db = new Database(source, { readonly: true, fileMustExist: true });
+await db.backup('/tmp/odc-production-backup.sqlite');
+db.close();
+const copy = new Database('/tmp/odc-production-backup.sqlite', { fileMustExist: true });
+copy.pragma('journal_mode = DELETE');
+const integrity = copy.pragma('integrity_check', { simple: true });
+copy.close();
+chmodSync('/tmp/odc-production-backup.sqlite', 0o600);
+if (integrity !== 'ok') throw new Error('Archive SQLite à vérifier');
+console.log('Archive cohérente créée, sans modification de la base source.');
+JS
+```
+
+Télécharger ensuite ce fichier via l'accès SSH/SCP documenté dans le tableau de bord Render vers un dossier privé ignoré par Git, puis produire l'archive finale :
+
+```sh
+python3 scripts/archive-legacy-data.py \
+  --database data/odc-production-backup.sqlite \
+  --output data/archives/render-production-final \
+  --source render-production
+```
+
+L'outil n'écrit pas dans la source et refuse d'écraser un dossier d'archive existant. Il crée :
+
+- `legacy.sqlite`, copie autonome avec toutes les tables, y compris les anciennes tables non utilisées par le site actuel, leurs identifiants, mots de passe hachés, favoris et messages ;
+- `manifest.json`, avec inventaire des tables, colonnes, volumes, résultat du contrôle d'intégrité et empreinte SHA-256 ;
+- `catalog-statuses.json`, contenant uniquement les disponibilités publiques, sans comptes ni messages.
+
+Les archives sont privées (dossier 0700, fichiers 0600), ignorées par Git et exclues de Vercel. Seul le fichier de disponibilités peut être copié vers `public/catalog-statuses.json`, **après vérification que sa source est bien `render-production`**. Conserver une seconde copie sécurisée de l'archive complète et vérifier la restauration et les volumes avant de supprimer quoi que ce soit chez Render.
+
+## Vérification et bascule
+
+1. Confirmer le projet Vercel `jarvismidorias-projects/odc-preview`, ses alias `odyssee.ma` et `www.odyssee.ma`, et l'abonnement approprié. Le compte inspecté le 15 octobre 2026 était en Hobby ; aucun abonnement payant n'a été souscrit.
+2. Tester la préversion : catalogue, filtres, modales, fiches directes, coloris, favoris après rechargement et entre onglets, sur ordinateur et mobile.
+3. Vérifier l'authentification SMTP depuis la préversion avec `CONTACT_VERIFY_ONLY=1` ; ne pas confondre cette vérification avec un email réellement livré.
+4. Pour la production, configurer les mêmes identifiants SMTP serveur et retirer `CONTACT_VERIFY_ONLY`. Vérifier l'expéditeur et le destinataire. Un essai de livraison réelle nécessite l'accord explicite du propriétaire pour envoyer ce message.
+5. Importer les disponibilités de production avant la bascule. Conserver le déploiement Vercel actuel comme retour arrière. Déployer d'abord en préversion ; ne pas promouvoir une version dont le contact n'est pas configuré.
+6. Une fois la nouvelle version validée et les anciennes données archivées en deux copies, décider séparément de la suppression Render. Aucune commande de suppression n'est fournie ni exécutée automatiquement.
+
+Commandes de vérification :
+
+```sh
+node --test tests/*.test.mjs
+python3 -m unittest discover -s tests -p 'test_*.py'
+npm run build
+```
+
+Le retrait des comptes et du serveur Render n'efface pas les factures impayées de l'ancien workspace.

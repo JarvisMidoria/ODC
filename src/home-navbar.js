@@ -26,22 +26,6 @@ import {
   parseProductSelectionKey
 } from "./product-selection.js";
 import { loadSiteContent } from "./site-content.js";
-import { apiFetch } from "./api-client.js";
-import {
-  PROFESSIONAL_AUTH_EVENT,
-  ensureProfessionalSession,
-  fetchProfessionalSession,
-  getProfessionalState,
-  loginProfessionalAccount,
-  logoutProfessionalAccount,
-  registerProfessionalAccount
-} from "./professional-auth.js";
-import { PROFESSIONAL_PROFESSIONS } from "./professional-config.js";
-
-const PROFESSIONAL_MODAL_REQUEST_EVENT = "odc:professional-modal-request";
-let pendingFavoriteSelectionKey = "";
-let pendingFavoriteRedirectHref = "";
-let pendingAuthReload = false;
 
 const navItems = [
   { href: "/produits", label: "Produits", matches: ["/produits", "/produits/","/produits.html"] },
@@ -294,94 +278,6 @@ function favoriteNavIconMarkup() {
   `;
 }
 
-async function requestProfessionalFavoriteAccess(selectionKey = "", redirectHref = "") {
-  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
-
-  if (professionalState.authenticated) {
-    return true;
-  }
-
-  pendingFavoriteSelectionKey = selectionKey || "";
-  pendingFavoriteRedirectHref = redirectHref || "";
-  pendingAuthReload = false;
-  document.dispatchEvent(
-    new CustomEvent(PROFESSIONAL_MODAL_REQUEST_EVENT, {
-      detail: { favoriteContext: true, redirectAfterLogin: false }
-    })
-  );
-  return false;
-}
-
-async function requestProfessionalProductAccess(redirectHref = "", reloadAfterLogin = false) {
-  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
-
-  if (professionalState.authenticated) {
-    return true;
-  }
-
-  pendingFavoriteSelectionKey = "";
-  pendingFavoriteRedirectHref = redirectHref || "";
-  pendingAuthReload = reloadAfterLogin === true;
-  document.dispatchEvent(
-    new CustomEvent(PROFESSIONAL_MODAL_REQUEST_EVENT, {
-      detail: { productContext: true, redirectAfterLogin: false }
-    })
-  );
-  return false;
-}
-
-async function resolvePendingProfessionalIntent() {
-  const selectionKey = pendingFavoriteSelectionKey;
-  const redirectHref = pendingFavoriteRedirectHref;
-  const shouldReload = pendingAuthReload;
-
-  pendingFavoriteSelectionKey = "";
-  pendingFavoriteRedirectHref = "";
-  pendingAuthReload = false;
-
-  if (selectionKey && !hasFavoriteProduct(selectionKey)) {
-    await toggleFavoriteProduct(selectionKey);
-  }
-
-  if (shouldReload) {
-    window.location.reload();
-    return true;
-  }
-
-  if (redirectHref) {
-    window.location.assign(redirectHref);
-    return true;
-  }
-
-  return false;
-}
-
-function clearPendingFavoriteIntent() {
-  pendingFavoriteSelectionKey = "";
-  pendingFavoriteRedirectHref = "";
-  pendingAuthReload = false;
-}
-
-function professionalIconMarkup() {
-  return `
-    <span class="odc-home-user-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="8" r="3.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M5.5 18.25a6.5 6.5 0 0 1 13 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </span>
-  `;
-}
-
-function eyeIconMarkup() {
-  return `
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M1.5 12s3.8-6 10.5-6 10.5 6 10.5 6-3.8 6-10.5 6S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
-    </svg>
-  `;
-}
-
 function favoriteIconMarkup(active = false) {
   return `
     <span class="odc-product-favorite__icon" aria-hidden="true">
@@ -451,9 +347,6 @@ if (root) {
           <a class="odc-home-favorite-link odc-home-favorite-link--mobile" href="/favoris.html" aria-label="Favoris" data-odc-favorite-nav>
             ${favoriteNavIconMarkup()}
           </a>
-          <button class="odc-home-pro odc-home-pro--mobile" type="button" data-professional-open aria-label="Professionnel">
-            ${professionalIconMarkup()}
-          </button>
           <button class="odc-home-toggle" type="button" aria-expanded="false" aria-controls="odc-home-mobile-nav" aria-label="Ouvrir le menu">
             <span class="odc-home-toggle__label">Menu</span>
             <span class="odc-home-toggle__icon" aria-hidden="true">
@@ -469,9 +362,6 @@ if (root) {
             <a class="odc-home-favorite-link" href="/favoris.html" aria-label="Favoris" data-odc-favorite-nav>
               ${favoriteNavIconMarkup()}
             </a>
-            <button class="odc-home-pro" type="button" data-professional-open aria-label="Professionnel">
-              ${professionalIconMarkup()}
-            </button>
             <button class="odc-home-cta" type="button" data-contract-contact-open>Prendre contact</button>
           </div>
         </div>
@@ -507,21 +397,6 @@ if (root) {
     event.stopPropagation();
     const expanded = toggle.getAttribute("aria-expanded") === "true";
     setMobileMenuOpen(!expanded);
-  });
-
-  root.querySelectorAll("[data-odc-favorite-nav]").forEach((link) => {
-    link.addEventListener("click", async (event) => {
-      if (getProfessionalState().authenticated) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      if (await requestProfessionalFavoriteAccess("", link.getAttribute("href") || "/favoris.html")) {
-        window.location.assign(link.getAttribute("href") || "/favoris.html");
-      }
-      setMobileMenuOpen(false);
-    });
   });
 
   mobile?.addEventListener("click", (event) => {
@@ -568,6 +443,9 @@ function ensureSharedContactModal() {
           <h2 id="odc-contract-modal-title" class="odc-contract-section__title">Parlons de votre projet.</h2>
           <p class="odc-contract-modal__lede">Échangez avec notre équipe pour une visite showroom, un projet résidentiel ou une demande professionnelle.</p>
           <form id="odc-contract-contact-form" class="odc-contract-form">
+            <label class="odc-contact-honeypot" aria-hidden="true">Site web
+              <input type="text" name="website" tabindex="-1" autocomplete="off" />
+            </label>
             <label>
               Nom
               <input type="text" name="name" placeholder="Votre nom" required />
@@ -627,401 +505,6 @@ function ensureSharedContactModal() {
   `;
 
   document.body.appendChild(modal);
-}
-
-function ensureProfessionalModal() {
-  if (document.querySelector(".odc-professional-modal")) {
-    return;
-  }
-
-  const modal = document.createElement("div");
-  modal.className = "odc-professional-modal";
-  modal.hidden = true;
-  modal.innerHTML = `
-    <div class="odc-professional-modal__backdrop" data-professional-close></div>
-    <div class="odc-professional-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="odc-professional-title">
-      <button class="odc-professional-modal__close" type="button" aria-label="Fermer" data-professional-close></button>
-      <div class="odc-professional-modal__header">
-        <p class="odc-professional-modal__eyebrow">Accès professionnel</p>
-        <h2 id="odc-professional-title" class="odc-professional-modal__title">Connexion et création de compte</h2>
-        <p class="odc-professional-modal__context" data-professional-context hidden>
-        </p>
-      </div>
-      <div class="odc-professional-modal__tabs" role="tablist" aria-label="Accès professionnel">
-        <button class="is-active" type="button" role="tab" aria-selected="true" data-professional-tab="login">Se connecter</button>
-        <button type="button" role="tab" aria-selected="false" data-professional-tab="register">Créer un compte</button>
-      </div>
-      <div class="odc-professional-modal__panels">
-        <section class="odc-professional-panel is-active" data-professional-panel="login">
-          <form class="odc-professional-form" data-professional-login-form>
-            <label>Email
-              <input type="email" name="email" placeholder="vous@entreprise.com" required />
-            </label>
-            <label>Mot de passe
-              <input type="password" name="password" placeholder="Votre mot de passe" required />
-            </label>
-            <button class="odc-professional-form__submit" type="submit">Se connecter</button>
-            <p class="odc-professional-form__feedback" data-professional-login-feedback aria-live="polite"></p>
-          </form>
-        </section>
-        <section class="odc-professional-panel" data-professional-panel="register" hidden>
-          <form class="odc-professional-form" data-professional-register-form>
-            <div class="odc-professional-form__grid">
-              <label>Nom
-                <input type="text" name="lastName" required />
-              </label>
-              <label>Prénom
-                <input type="text" name="firstName" required />
-              </label>
-            </div>
-            <label>Numéro de téléphone
-              <input type="tel" name="phone" required />
-            </label>
-            <label>Email
-              <input type="email" name="email" required />
-            </label>
-            <label>Profession
-              <select name="profession" required>
-                <option value="">Sélectionner</option>
-                ${PROFESSIONAL_PROFESSIONS.map((item) => `<option value="${item}">${item}</option>`).join("")}
-              </select>
-            </label>
-            <label>Mot de passe
-              <span class="odc-professional-form__password-field">
-                <input type="password" name="password" required />
-                <button type="button" class="odc-professional-form__password-toggle" data-password-toggle aria-label="Afficher le mot de passe">
-                  <span aria-hidden="true">${eyeIconMarkup()}</span>
-                </button>
-              </span>
-            </label>
-            <label>Confirmer le mot de passe
-              <span class="odc-professional-form__password-field">
-                <input type="password" name="passwordConfirm" required />
-                <button type="button" class="odc-professional-form__password-toggle" data-password-toggle aria-label="Afficher le mot de passe">
-                  <span aria-hidden="true">${eyeIconMarkup()}</span>
-                </button>
-              </span>
-            </label>
-            <button class="odc-professional-form__submit" type="submit">Créer un compte</button>
-            <p class="odc-professional-form__feedback" data-professional-register-feedback aria-live="polite"></p>
-          </form>
-        </section>
-        <section class="odc-professional-panel" data-professional-panel="account" hidden>
-          <div class="odc-professional-account">
-            <p class="odc-professional-account__status">Mode professionnel actif</p>
-            <h3 data-professional-account-name></h3>
-            <p data-professional-account-meta></p>
-            <button class="odc-professional-form__submit odc-professional-form__submit--secondary" type="button" data-professional-logout>Se déconnecter</button>
-          </div>
-        </section>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-}
-
-function syncProfessionalModeUi() {
-  const state = getProfessionalState();
-  document.body.classList.toggle("odc-professional-mode", state.authenticated);
-  document.body.classList.toggle("odc-public-mode", !state.authenticated);
-
-  document.querySelectorAll("[data-professional-open]").forEach((button) => {
-    if (!(button instanceof HTMLButtonElement)) {
-      return;
-    }
-
-    const label = state.authenticated ? "Espace pro" : "Professionnel";
-    button.setAttribute("aria-label", label);
-    button.setAttribute("title", label);
-  });
-
-  updateCartIndicators();
-}
-
-function enableProfessionalAuth() {
-  ensureProfessionalModal();
-
-  const modal = document.querySelector(".odc-professional-modal");
-  if (!(modal instanceof HTMLElement)) {
-    return;
-  }
-
-  const loginForm = modal.querySelector("[data-professional-login-form]");
-  const registerForm = modal.querySelector("[data-professional-register-form]");
-  const loginFeedback = modal.querySelector("[data-professional-login-feedback]");
-  const registerFeedback = modal.querySelector("[data-professional-register-feedback]");
-  const accountName = modal.querySelector("[data-professional-account-name]");
-  const accountMeta = modal.querySelector("[data-professional-account-meta]");
-  const logoutButton = modal.querySelector("[data-professional-logout]");
-  const title = modal.querySelector("#odc-professional-title");
-  const contextMessage = modal.querySelector("[data-professional-context]");
-  const tabs = modal.querySelector(".odc-professional-modal__tabs");
-  const dialog = modal.querySelector(".odc-professional-modal__dialog");
-
-  const setFeedback = (node, message, isError = false) => {
-    if (!(node instanceof HTMLElement)) {
-      return;
-    }
-    node.textContent = message;
-    node.classList.toggle("is-error", isError);
-    node.classList.toggle("is-success", !isError && Boolean(message));
-  };
-
-  const syncPublicTitle = (name) => {
-    if (!(title instanceof HTMLElement)) {
-      return;
-    }
-
-    if (name === "register") {
-      title.textContent = "Créer un compte";
-      return;
-    }
-
-    if (name === "login") {
-      title.textContent = "Se connecter";
-    }
-  };
-
-  const activatePanel = (name) => {
-    modal.querySelectorAll("[data-professional-tab]").forEach((button) => {
-      const isActive = button.getAttribute("data-professional-tab") === name;
-      button.classList.toggle("is-active", isActive);
-      button.setAttribute("aria-selected", String(isActive));
-    });
-
-    modal.querySelectorAll("[data-professional-panel]").forEach((panel) => {
-      const isActive = panel.getAttribute("data-professional-panel") === name;
-      panel.classList.toggle("is-active", isActive);
-      panel.hidden = !isActive;
-    });
-
-    syncPublicTitle(name);
-  };
-
-  const renderPanels = () => {
-    const state = getProfessionalState();
-    if (state.authenticated) {
-      activatePanel("account");
-      if (title instanceof HTMLElement) {
-        title.textContent = "Espace professionnel";
-      }
-      if (tabs instanceof HTMLElement) {
-        tabs.hidden = true;
-      }
-      if (accountName instanceof HTMLElement) {
-        accountName.textContent = `${state.user?.firstName || ""} ${state.user?.lastName || ""}`.trim();
-      }
-      if (accountMeta instanceof HTMLElement) {
-        accountMeta.textContent = `${state.user?.email || ""} · ${state.user?.profession || ""}`;
-      }
-      return;
-    }
-
-    if (tabs instanceof HTMLElement) {
-      tabs.hidden = false;
-    }
-    activatePanel("login");
-  };
-
-  const openModal = (options = {}) => {
-    const modalOptions = options && !(options instanceof Event) ? options : {};
-    modal.dataset.odcProfessionalRedirectAfterLogin = modalOptions.redirectAfterLogin === false ? "false" : "true";
-    if (contextMessage instanceof HTMLElement) {
-      const message = modalOptions.productContext
-        ? "Connectez-vous pour consulter les fiches produits, accéder aux coloris et enregistrer vos sélections favorites."
-        : modalOptions.favoriteContext
-          ? "Connectez-vous pour enregistrer vos produits favoris et recevoir nos actualités."
-          : "";
-      contextMessage.textContent = message;
-      contextMessage.hidden = !message;
-    }
-    renderPanels();
-    modal.hidden = false;
-    document.body.classList.add("odc-professional-modal-open");
-  };
-
-  const closeModal = (options = {}) => {
-    if (options.clearPendingFavorite) {
-      clearPendingFavoriteIntent();
-    }
-    modal.hidden = true;
-    document.body.classList.remove("odc-professional-modal-open");
-  };
-
-  document.querySelectorAll("[data-professional-open]").forEach((button) => {
-    if (button.dataset.odcProfessionalOpenReady === "true") {
-      return;
-    }
-    button.dataset.odcProfessionalOpenReady = "true";
-    button.addEventListener("click", () => openModal());
-  });
-
-  if (modal.dataset.odcProfessionalRequestReady !== "true") {
-    modal.dataset.odcProfessionalRequestReady = "true";
-    document.addEventListener(PROFESSIONAL_MODAL_REQUEST_EVENT, (event) => {
-      openModal(event.detail || {});
-    });
-  }
-
-  if (dialog instanceof HTMLElement && dialog.dataset.odcProfessionalDialogReady !== "true") {
-    dialog.dataset.odcProfessionalDialogReady = "true";
-    dialog.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-  }
-
-  modal.querySelectorAll("[data-professional-close]").forEach((node) => {
-    if (!(node instanceof HTMLElement) || node.dataset.odcProfessionalCloseReady === "true") {
-      return;
-    }
-    node.dataset.odcProfessionalCloseReady = "true";
-    node.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      closeModal({ clearPendingFavorite: true });
-    });
-  });
-
-  if (modal.dataset.odcProfessionalBackdropReady !== "true") {
-    modal.dataset.odcProfessionalBackdropReady = "true";
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
-          closeModal({ clearPendingFavorite: true });
-      }
-    });
-  }
-
-  modal.querySelectorAll("[data-professional-tab]").forEach((button) => {
-    if (button.dataset.odcProfessionalTabReady === "true") {
-      return;
-    }
-    button.dataset.odcProfessionalTabReady = "true";
-    button.addEventListener("click", () => activatePanel(button.getAttribute("data-professional-tab")));
-  });
-
-  modal.querySelectorAll("[data-password-toggle]").forEach((button) => {
-    if (!(button instanceof HTMLButtonElement) || button.dataset.odcPasswordToggleReady === "true") {
-      return;
-    }
-
-    button.dataset.odcPasswordToggleReady = "true";
-    button.addEventListener("click", () => {
-      const field = button.closest(".odc-professional-form__password-field");
-      const input = field?.querySelector("input");
-      if (!(input instanceof HTMLInputElement)) {
-        return;
-      }
-
-      const isVisible = input.type === "text";
-      input.type = isVisible ? "password" : "text";
-      button.classList.toggle("is-active", !isVisible);
-      button.setAttribute("aria-label", isVisible ? "Afficher le mot de passe" : "Masquer le mot de passe");
-    });
-  });
-
-  if (loginForm instanceof HTMLFormElement && loginForm.dataset.odcProfessionalReady !== "true") {
-    loginForm.dataset.odcProfessionalReady = "true";
-    loginForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const formData = new FormData(loginForm);
-      setFeedback(loginFeedback, "");
-
-      try {
-        await loginProfessionalAccount({
-          email: formData.get("email"),
-          password: formData.get("password")
-        });
-        const redirectHandled = await resolvePendingProfessionalIntent();
-        closeModal();
-        if (redirectHandled) {
-          return;
-        }
-        if (modal.dataset.odcProfessionalRedirectAfterLogin === "false") {
-          return;
-        }
-        window.location.assign("/");
-      } catch (error) {
-        setFeedback(loginFeedback, error.message || "Connexion impossible.", true);
-      }
-    });
-  }
-
-  if (registerForm instanceof HTMLFormElement && registerForm.dataset.odcProfessionalReady !== "true") {
-    registerForm.dataset.odcProfessionalReady = "true";
-    registerForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const formData = new FormData(registerForm);
-      setFeedback(registerFeedback, "");
-
-      if (String(formData.get("password") || "") !== String(formData.get("passwordConfirm") || "")) {
-        setFeedback(registerFeedback, "Les mots de passe doivent être identiques.", true);
-        return;
-      }
-
-      try {
-        const payload = await registerProfessionalAccount({
-          firstName: formData.get("firstName"),
-          lastName: formData.get("lastName"),
-          phone: formData.get("phone"),
-          email: formData.get("email"),
-          profession: formData.get("profession"),
-          password: formData.get("password"),
-          passwordConfirm: formData.get("passwordConfirm")
-        });
-        registerForm.reset();
-        setFeedback(
-          registerFeedback,
-          payload.verificationEmailSent
-            ? "Compte créé. Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter. Pensez aussi à regarder vos spams ou courriers indésirables."
-            : "Compte créé. L’email de confirmation n’a pas pu être envoyé, contactez-nous pour activer votre compte."
-        );
-      } catch (error) {
-        setFeedback(registerFeedback, error.message || "Création de compte impossible.", true);
-      }
-    });
-  }
-
-  if (logoutButton instanceof HTMLButtonElement && logoutButton.dataset.odcProfessionalReady !== "true") {
-    logoutButton.dataset.odcProfessionalReady = "true";
-    logoutButton.addEventListener("click", async () => {
-      await logoutProfessionalAccount();
-      closeModal();
-      window.location.assign("/");
-    });
-  }
-
-  if (!modal.dataset.odcProfessionalEscapeReady) {
-    modal.dataset.odcProfessionalEscapeReady = "true";
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !modal.hidden) {
-        closeModal({ clearPendingFavorite: true });
-      }
-    });
-  }
-
-  renderPanels();
-  syncProfessionalModeUi();
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, renderPanels);
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, syncProfessionalModeUi);
-  fetchProfessionalSession().catch(() => {});
-
-  const params = new URLSearchParams(window.location.search);
-  const emailVerified = params.get("emailVerified");
-  if (emailVerified === "1" || emailVerified === "expired") {
-    openModal({ redirectAfterLogin: false });
-    activatePanel("login");
-    setFeedback(
-      loginFeedback,
-      emailVerified === "1"
-        ? "Votre email est confirmé. Vous pouvez maintenant vous connecter."
-        : "Le lien de confirmation est expiré. Créez un nouveau compte ou contactez-nous pour recevoir un nouveau lien.",
-      emailVerified !== "1"
-    );
-    params.delete("emailVerified");
-    const nextQuery = params.toString();
-    window.history.replaceState({}, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`);
-  }
 }
 
 function footerIcon(type) {
@@ -1583,6 +1066,7 @@ function enableContractContactModal() {
         subject: String(formData.get("subject") || "").trim(),
         sector: String(formData.get("sector") || "").trim(),
         message: String(formData.get("message") || "").trim(),
+        website: String(formData.get("website") || ""),
         source: "contract-modal"
       };
 
@@ -1595,7 +1079,7 @@ function enableContractContactModal() {
       }
 
       try {
-        const response = await apiFetch("/api/contact", {
+        const response = await fetch("/api/contact", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -1924,7 +1408,6 @@ function flashAddToCartState(button) {
 }
 
 function buildLocalCartMarkup() {
-  const professionalState = getProfessionalState();
   const lines = getCartLines()
     .map((line) => {
       const product = getProductCatalogItemById(line.productId);
@@ -1985,11 +1468,7 @@ function buildLocalCartMarkup() {
                     </div>
                     <button class="odc-cart-item__remove" type="button" data-odc-cart-remove="${line.key}">Supprimer</button>
                   </div>
-                  ${
-                    professionalState.authenticated
-                      ? `<div class="odc-cart-item__price"><strong>${formatMoney(line.price)}</strong></div>`
-                      : `<div class="odc-cart-item__note">Tarif communique sur demande.</div>`
-                  }
+                  <div class="odc-cart-item__note">Tarif communiqué sur demande.</div>
                   <div class="odc-cart-item__controls">
                     <div class="odc-cart-quantity" role="group" aria-label="Quantité">
                       <button type="button" aria-label="Réduire la quantité" data-odc-cart-quantity="decrease" data-odc-cart-line-key="${line.key}">−</button>
@@ -2009,7 +1488,7 @@ function buildLocalCartMarkup() {
             <span>Articles</span>
             <strong>${totalItems}</strong>
           </div>
-          <p class="odc-cart-summary__note">${professionalState.authenticated ? "Les prix sont visibles dans votre espace professionnel. La finalisation se fait ensuite avec l’équipe Odyssée." : "Les tarifs sont communiques sur demande. La finalisation se fait ensuite avec l’equipe Odyssée."}</p>
+          <p class="odc-cart-summary__note">Les tarifs sont communiqués sur demande. La finalisation se fait avec l’équipe Odyssée.</p>
           <div class="odc-cart-summary__actions">
             <button class="odc-cart-button odc-cart-button--primary" type="button" data-contract-contact-open>Prendre contact</button>
             <a class="odc-cart-button" href="/produits">Continuer mes achats</a>
@@ -2102,7 +1581,6 @@ function enableLocalCartPage() {
   });
 
   window.addEventListener(CART_CHANGE_EVENT, render);
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, render);
 }
 
 function buildFavoritesMarkup() {
@@ -2161,7 +1639,7 @@ function buildFavoritesMarkup() {
             <span>Coloris favoris</span>
             <strong>${totalVisible}</strong>
           </div>
-          <p class="odc-cart-summary__note">Vos favoris sont enregistrés par coloris pour faciliter votre sélection.</p>
+          <p class="odc-cart-summary__note">Vos favoris sont enregistrés dans ce navigateur, par coloris. Ils ne sont pas synchronisés entre appareils.</p>
           <div class="odc-cart-summary__actions">
             <a class="odc-cart-button odc-cart-button--primary" href="/produits">Continuer la sélection</a>
           </div>
@@ -2214,7 +1692,6 @@ function enableFavoritesPage() {
   });
 
   window.addEventListener(FAVORITES_CHANGE_EVENT, render);
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, render);
 }
 
 window.addEventListener(CART_CHANGE_EVENT, updateCartIndicators);
@@ -2470,7 +1947,7 @@ function applyProductColorwayStatusOverrides(statuses = []) {
 
 async function loadProductStatusOverrides() {
   try {
-    const response = await apiFetch("/api/catalog/product-statuses");
+    const response = await fetch("/catalog-statuses.json", { cache: "no-cache" });
     if (!response.ok) {
       return;
     }
@@ -2479,7 +1956,7 @@ async function loadProductStatusOverrides() {
     applyProductColorwayStatusOverrides(payload.colorwayStatuses);
     document.dispatchEvent(new CustomEvent(PRODUCT_STATUS_CHANGE_EVENT));
   } catch {
-    // La disponibilité reste lisible depuis le catalogue statique si l'API est indisponible.
+    // Les données du catalogue restent utilisables si le fichier de disponibilités est absent.
   }
 }
 
@@ -2967,9 +2444,6 @@ function bindProductGridFavoriteInteractions(state) {
     document.addEventListener(PRODUCT_STATUS_CHANGE_EVENT, () => {
       state.renderProductGrid?.();
     });
-    window.addEventListener(PROFESSIONAL_AUTH_EVENT, () => {
-      state.renderProductGrid?.();
-    });
   }
 
   if (state.root.dataset.odcFavoriteClickBound === "true") {
@@ -2989,10 +2463,6 @@ function bindProductGridFavoriteInteractions(state) {
 
     const selectionKey = favoriteButton.getAttribute("data-odc-card-favorite") || "";
     if (!selectionKey || favoriteButton.disabled) {
-      return;
-    }
-
-    if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
       return;
     }
 
@@ -3309,7 +2779,6 @@ function renderProductDiscovery(state, overlay) {
   const eyebrow = overlay.querySelector(".odc-product-discovery__eyebrow");
   const priceNode = overlay.querySelector(".odc-product-discovery__price");
   const favoriteButton = overlay.querySelector("[data-odc-favorite-request]");
-  const professionalState = getProfessionalState();
   const activeSelectionKey = getProductSelectionKey(product, colorway);
 
   if (title) {
@@ -3383,13 +2852,7 @@ function renderProductDiscovery(state, overlay) {
   }
 
   if (priceNode) {
-    const activePrice = getProductActivePrice(product, colorway);
-    priceNode.innerHTML =
-      professionalState.authenticated
-        ? activePrice
-          ? `<strong>${formatMoney(activePrice)}</strong>${product.onSale && product.price ? `<span>${formatMoney(product.price)}</span>` : ""}`
-          : "<strong>Prix sur demande</strong>"
-        : "";
+    priceNode.innerHTML = "<strong>Prix sur demande</strong>";
   }
 
   if (eyebrow) {
@@ -3520,10 +2983,6 @@ function closeProductDiscovery(state, overlay) {
 
 async function openProductDiscovery(state, overlay, index, trigger, colorwayIndex = 0) {
   if (index < 0 || index >= state.items.length) {
-    return;
-  }
-
-  if (!(await requestProfessionalProductAccess())) {
     return;
   }
 
@@ -3704,9 +3163,6 @@ async function enableProductDiscoveryOverlay() {
       event.preventDefault();
       event.stopImmediatePropagation();
       const href = overlayLink.getAttribute("data-odc-target-href");
-      if (!(await requestProfessionalProductAccess(href || "/produits"))) {
-        return;
-      }
       if (href) {
         window.location.assign(href);
       }
@@ -3722,9 +3178,6 @@ async function enableProductDiscoveryOverlay() {
       const selectionKey = getProductSelectionKey(product, colorway);
 
       if (selectionKey) {
-        if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
-          return;
-        }
 
         toggleFavoriteProduct(selectionKey)
           .then(() => renderProductDiscovery(state, overlay))
@@ -3906,12 +3359,6 @@ async function enableProductDiscoveryOverlay() {
     }
   });
 
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, () => {
-    if (overlay.classList.contains("is-open")) {
-      renderProductDiscovery(state, overlay);
-    }
-    renderCustomProductGrid(state);
-  });
 }
 
 function isProductDetailPath() {
@@ -3984,18 +3431,7 @@ function buildLocalProductDetailMarkup(product, state) {
         <div class="odc-product-colorways__sku">${escapeHtml(colorway?.sku || "")}</div>
       `
     : "";
-  const productPriceMarkup = activePrice
-    ? `
-          <div class="product-price">
-            <strong>${formatMoney(activePrice)}</strong>
-            ${product.onSale && product.price ? `<span>${formatMoney(product.price)}</span>` : ""}
-          </div>
-        `
-    : `
-          <div class="product-price">
-            <strong>Prix sur demande</strong>
-          </div>
-        `;
+  const productPriceMarkup = `<div class="product-price"><strong>Prix sur demande</strong></div>`;
   const productPurchaseMarkup = `
         <div class="product-add-to-cart">
           <div class="product-add-to-cart-layout-wrapper">
@@ -4159,25 +3595,6 @@ async function enableLocalProductDetail() {
     return;
   }
 
-  const professionalState = await ensureProfessionalSession().catch(() => getProfessionalState());
-
-  if (!professionalState.authenticated) {
-    root.dataset.odcLocalDetailReady = "true";
-    root.innerHTML = `
-      <section class="odc-product-access-wall" aria-live="polite">
-        <p class="odc-product-access-wall__eyebrow">Accès réservé</p>
-        <h1>Connectez-vous pour consulter cette fiche produit.</h1>
-        <p>Les fiches détaillées, les coloris et les favoris sont accessibles après connexion.</p>
-        <button class="odc-product-access-wall__button" type="button" data-product-access-login>Se connecter</button>
-      </section>
-    `;
-    root.querySelector("[data-product-access-login]")?.addEventListener("click", () => {
-      requestProfessionalProductAccess("", true);
-    });
-    requestProfessionalProductAccess("", true);
-    return;
-  }
-
   const initialColorwayIndex = Math.max(
     0,
     getProductColorways(product).findIndex((colorway) => colorway.id === detailTarget?.colorwayId)
@@ -4234,7 +3651,7 @@ async function enableLocalProductDetail() {
     imageWrap.querySelector(".odc-local-product-gallery__image")?.style.removeProperty("transform");
   };
 
-  const syncProfessionalProductDetail = () => {
+  const syncProductDetail = () => {
     renderLocalProductDetail(root, product, state);
     const favoriteButton = root.querySelector("[data-odc-detail-favorite]");
     const activeColorway = getProductActiveColorway(product, state.currentColorwayIndex);
@@ -4248,7 +3665,7 @@ async function enableLocalProductDetail() {
     }
   };
 
-  syncProfessionalProductDetail();
+  syncProductDetail();
 
   root.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null;
@@ -4263,7 +3680,7 @@ async function enableLocalProductDetail() {
       const index = Number.parseInt(thumb.getAttribute("data-odc-detail-thumb-index") || "", 10);
       if (Number.isInteger(index)) {
         state.currentImageIndex = index;
-        syncProfessionalProductDetail();
+        syncProductDetail();
       }
       return;
     }
@@ -4275,7 +3692,7 @@ async function enableLocalProductDetail() {
       if (Number.isInteger(index)) {
         state.currentColorwayIndex = index;
         state.currentImageIndex = 0;
-        syncProfessionalProductDetail();
+        syncProductDetail();
       }
       return;
     }
@@ -4287,7 +3704,7 @@ async function enableLocalProductDetail() {
       if (total > 1) {
         const direction = nav.getAttribute("data-odc-detail-nav") === "next" ? 1 : -1;
         state.currentImageIndex = (state.currentImageIndex + direction + total) % total;
-        syncProfessionalProductDetail();
+        syncProductDetail();
       }
       return;
     }
@@ -4322,12 +3739,9 @@ async function enableLocalProductDetail() {
       event.preventDefault();
       const colorway = getProductActiveColorway(product, state.currentColorwayIndex);
       const selectionKey = getProductSelectionKey(product, colorway);
-      if (!(await requestProfessionalFavoriteAccess(selectionKey))) {
-        return;
-      }
 
       toggleFavoriteProduct(selectionKey)
-        .then(() => syncProfessionalProductDetail())
+        .then(() => syncProductDetail())
         .catch((error) => console.error(error));
       return;
     }
@@ -4416,9 +3830,8 @@ async function enableLocalProductDetail() {
     setLocalDetailZoom(imageWrap, touch.clientX, touch.clientY);
   }, { passive: true });
 
-  window.addEventListener(PROFESSIONAL_AUTH_EVENT, syncProfessionalProductDetail);
-  window.addEventListener(FAVORITES_CHANGE_EVENT, syncProfessionalProductDetail);
-  document.addEventListener(PRODUCT_STATUS_CHANGE_EVENT, syncProfessionalProductDetail);
+  window.addEventListener(FAVORITES_CHANGE_EVENT, syncProductDetail);
+  document.addEventListener(PRODUCT_STATUS_CHANGE_EVENT, syncProductDetail);
 }
 
 function initializeOdcSite() {
@@ -4437,7 +3850,6 @@ function initializeOdcSite() {
   enableAmbiancesCarousel();
   enableContractContactModal();
   normalizeProductCategoryLinks();
-  enableProfessionalAuth();
   enableProductDiscoveryOverlay();
   enableLocalProductDetail();
   enableLocalCartPage();

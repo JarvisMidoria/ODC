@@ -7,6 +7,10 @@ data/
 .cache/
 .playwright-cli/
 .runlogs/
+.env*
+!.env.example
+output/playwright/
+__pycache__/
 tmp/
 tmp-*.png
 Odyssee/

@@ -2104,7 +2104,6 @@ body.odc-home-shell {
 }
 
 .odc-home-cta,
-.odc-home-pro,
 .odc-home-favorite-link,
 .odc-home-mobile-cta,
 .odc-home-mobile-pro,
@@ -2127,7 +2126,6 @@ body.odc-home-shell {
 }
 
 .odc-home-cta,
-.odc-home-pro,
 .odc-home-favorite-link,
 .odc-home-mobile-cta,
 .odc-home-mobile-pro,
@@ -2139,7 +2137,6 @@ body.odc-home-shell {
 }
 
 .odc-home-cta:hover,
-.odc-home-pro:hover,
 .odc-home-favorite-link:hover,
 .odc-home-mobile-cta:hover,
 .odc-home-mobile-pro:hover,
@@ -2163,24 +2160,12 @@ body.odc-home-shell {
   display: inline-flex;
 }
 
-.odc-home-user-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-}
-
 .odc-home-favorite-link__icon .odc-product-favorite__icon {
   width: 18px;
   height: 18px;
 }
 
 .odc-home-favorite-link__icon .odc-product-favorite__icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.odc-home-user-icon svg {
   width: 100%;
   height: 100%;
   display: block;
@@ -2204,15 +2189,6 @@ body.odc-home-shell {
 }
 
 .odc-home-toggle {
-  display: none;
-}
-
-.odc-home-pro {
-  min-width: 2rem;
-  min-height: 2rem;
-}
-
-.odc-home-pro--mobile {
   display: none;
 }
 
@@ -2647,14 +2623,6 @@ body.odc-home-shell {
     padding: 0 0.18rem;
     line-height: 1rem;
     font-size: 0.62rem;
-  }
-
-  .odc-home-pro--mobile {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 0.85rem;
-    margin-right: 0;
   }
 
   .odc-home-toggle {
@@ -3987,7 +3955,6 @@ body.odc-home-shell {
 
 .odc-product-discovery__panel::-webkit-scrollbar,
 .odc-contract-modal__dialog::-webkit-scrollbar,
-.odc-professional-modal__dialog::-webkit-scrollbar,
 .odc-showrooms-modal__dialog::-webkit-scrollbar,
 .odc-product-discovery__thumbs::-webkit-scrollbar {
   width: 8px;
@@ -3996,7 +3963,6 @@ body.odc-home-shell {
 
 .odc-product-discovery__panel::-webkit-scrollbar-track,
 .odc-contract-modal__dialog::-webkit-scrollbar-track,
-.odc-professional-modal__dialog::-webkit-scrollbar-track,
 .odc-showrooms-modal__dialog::-webkit-scrollbar-track,
 .odc-product-discovery__thumbs::-webkit-scrollbar-track {
   background: transparent;
@@ -4015,7 +3981,6 @@ body.odc-home-shell {
 
 .odc-product-discovery__panel::-webkit-scrollbar-thumb,
 .odc-contract-modal__dialog::-webkit-scrollbar-thumb,
-.odc-professional-modal__dialog::-webkit-scrollbar-thumb,
 .odc-showrooms-modal__dialog::-webkit-scrollbar-thumb,
 .odc-product-discovery__thumbs::-webkit-scrollbar-thumb {
   background: rgba(17, 17, 17, 0.16);
@@ -4026,7 +3991,6 @@ body.odc-home-shell {
 
 .odc-product-discovery__panel::-webkit-scrollbar-thumb:hover,
 .odc-contract-modal__dialog::-webkit-scrollbar-thumb:hover,
-.odc-professional-modal__dialog::-webkit-scrollbar-thumb:hover,
 .odc-showrooms-modal__dialog::-webkit-scrollbar-thumb:hover,
 .odc-product-discovery__thumbs::-webkit-scrollbar-thumb:hover {
   background: rgba(17, 17, 17, 0.24);
@@ -4040,9 +4004,7 @@ body.odc-home-shell {
   color: rgba(17, 17, 17, 0.48);
 }
 
-.odc-home-shell:not(.odc-professional-mode) .odc-product-discovery__price,
-.odc-home-shell:not(.odc-professional-mode) .product-price,
-.odc-home-shell:not(.odc-professional-mode) .odc-product-card__price {
+.odc-product-card__price {
   display: none !important;
 }
 
@@ -4126,278 +4088,6 @@ body.odc-home-shell {
   gap: 10px;
 }
 
-.odc-public-mode .odc-local-product-detail__professional {
-  display: none !important;
-}
-
-.odc-product-access-wall {
-  min-height: calc(100vh - 92px);
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 1rem;
-  padding: clamp(5rem, 12vw, 8rem) 1.5rem;
-  text-align: center;
-  background: #f7f2eb;
-  color: #111;
-}
-
-.odc-product-access-wall__eyebrow {
-  margin: 0;
-  color: rgba(17, 15, 14, 0.5);
-  font-size: 0.78rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.odc-product-access-wall h1 {
-  max-width: 720px;
-  margin: 0;
-  font-size: clamp(2.2rem, 5vw, 4.8rem);
-  line-height: 0.98;
-  font-weight: 400;
-}
-
-.odc-product-access-wall p:not(.odc-product-access-wall__eyebrow) {
-  max-width: 560px;
-  margin: 0;
-  color: rgba(17, 15, 14, 0.64);
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.odc-product-access-wall__button {
-  min-width: 180px;
-  min-height: 50px;
-  border: 0;
-  background: #111;
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-
-.odc-professional-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-}
-
-.odc-professional-modal[hidden] {
-  display: none !important;
-}
-
-.odc-professional-modal__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(7, 7, 7, 0.42);
-}
-
-.odc-professional-modal__dialog {
-  position: relative;
-  width: min(760px, calc(100vw - 3rem));
-  max-height: min(88vh, 980px);
-  box-sizing: border-box;
-  background: #f8f4ef;
-  color: #111;
-  padding: 2rem;
-  border-radius: 24px;
-  box-shadow: 0 32px 80px rgba(17, 15, 14, 0.18);
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(17, 17, 17, 0.18) transparent;
-}
-
-.odc-professional-modal__close {
-  position: absolute;
-  top: 1.1rem;
-  right: 1.1rem;
-  z-index: 2;
-  width: 2rem;
-  height: 2rem;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.odc-professional-modal__close::before,
-.odc-professional-modal__close::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 1.1rem;
-  height: 1px;
-  background: #111;
-}
-
-.odc-professional-modal__close::before { transform: translate(-50%, -50%) rotate(45deg); }
-.odc-professional-modal__close::after { transform: translate(-50%, -50%) rotate(-45deg); }
-
-.odc-professional-modal__eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: rgba(17, 15, 14, 0.5);
-}
-
-.odc-professional-modal__title {
-  margin: 0 0 1.5rem;
-  font-size: clamp(1.8rem, 2.8vw, 2.6rem);
-  line-height: 0.95;
-}
-
-.odc-professional-modal__context {
-  margin: -0.8rem 0 1.45rem;
-  max-width: 34rem;
-  color: rgba(17, 15, 14, 0.64);
-  font-size: 0.98rem;
-  line-height: 1.45;
-}
-
-.odc-professional-modal__context[hidden] {
-  display: none;
-}
-
-.odc-professional-modal__tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.4rem;
-}
-
-.odc-professional-modal__tabs[hidden] {
-  display: none;
-}
-
-.odc-professional-modal__tabs button {
-  border: 1px solid rgba(17, 15, 14, 0.14);
-  background: transparent;
-  color: rgba(17, 15, 14, 0.64);
-  min-height: 44px;
-  padding: 0 1rem;
-  cursor: pointer;
-}
-
-.odc-professional-modal__tabs button.is-active {
-  background: #111;
-  color: #f8f4ef;
-  border-color: #111;
-}
-
-.odc-professional-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.odc-professional-form__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.odc-professional-form label {
-  display: grid;
-  gap: 0.45rem;
-  font-size: 0.86rem;
-}
-
-.odc-professional-form input,
-.odc-professional-form select {
-  width: 100%;
-  min-height: 50px;
-  box-sizing: border-box;
-  border: 1px solid rgba(17, 15, 14, 0.14);
-  background: #fff;
-  padding: 0 0.95rem;
-  font: inherit;
-}
-
-.odc-professional-form__password-field {
-  position: relative;
-  display: block;
-}
-
-.odc-professional-form__password-field input {
-  padding-right: 4.8rem;
-}
-
-.odc-professional-form__password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 0.85rem;
-  transform: translateY(-50%);
-  border: 0;
-  background: transparent;
-  color: rgba(17, 15, 14, 0.58);
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.odc-professional-form__password-toggle:hover,
-.odc-professional-form__password-toggle:focus-visible {
-  color: #111;
-}
-
-.odc-professional-form__password-toggle svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.odc-professional-form__password-toggle.is-active {
-  color: #111;
-}
-
-.odc-professional-form__submit {
-  min-height: 50px;
-  border: 0;
-  background: #111;
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-
-.odc-professional-form__submit--secondary {
-  background: transparent;
-  color: #111;
-  border: 1px solid rgba(17, 15, 14, 0.14);
-}
-
-.odc-professional-form__feedback {
-  margin: 0;
-  min-height: 1.2rem;
-  font-size: 0.82rem;
-}
-
-.odc-professional-form__feedback.is-error { color: #9b2226; }
-.odc-professional-form__feedback.is-success { color: #1f6f43; }
-
-.odc-professional-account {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.odc-professional-account__status {
-  margin: 0;
-  color: rgba(17, 15, 14, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.74rem;
-}
-
-.odc-professional-account__counter {
-  padding: 0.9rem 1rem;
-  border: 1px solid rgba(17, 15, 14, 0.12);
-}
-
 @media (max-width: 640px) {
   .odc-contract-space-header__inner {
     width: auto;
@@ -4444,8 +4134,7 @@ body.odc-home-shell {
 
   .odc-product-discovery,
   .odc-showrooms-modal,
-  .odc-contract-modal,
-  .odc-professional-modal {
+  .odc-contract-modal {
     padding: 1rem;
     display: grid;
     place-items: center;
@@ -4456,8 +4145,7 @@ body.odc-home-shell {
 
   .odc-product-discovery__shell,
   .odc-showrooms-modal__dialog,
-  .odc-contract-modal__dialog,
-  .odc-professional-modal__dialog {
+  .odc-contract-modal__dialog {
     width: calc(100vw - 2rem) !important;
     max-width: calc(100vw - 2rem) !important;
     max-height: calc(100dvh - 2rem) !important;
@@ -4488,37 +4176,6 @@ body.odc-home-shell {
 
   .odc-contract-modal__info {
     padding-top: 0;
-  }
-
-  .odc-professional-modal {
-    align-items: center;
-  }
-
-  .odc-professional-modal__dialog {
-    padding: 54px 14px 16px;
-    border-radius: 24px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .odc-professional-modal__title {
-    font-size: 2rem;
-    line-height: 0.98;
-    margin-bottom: 1.1rem;
-  }
-
-  .odc-professional-modal__tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .odc-professional-modal__tabs button {
-    min-width: 0;
-    padding-inline: 0.75rem;
-  }
-
-  .odc-professional-form__grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -6033,4 +5690,13 @@ body.odc-home-shell {
   .odc-home-shell .odc-footer__logo img {
     width: 8.75rem;
   }
+}
+
+.odc-contact-honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

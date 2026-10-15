@@ -9,5 +9,13 @@ tmp
 tmp-*.png
 Odyssee
 .runlogs
+data
+server
+tests
+.env*
+docs
+*.pdf
+output
+**/__pycache__
 public/custom-assets/odyssee-video-global.mp4
 Odyssée+Logo+design+V2.webp

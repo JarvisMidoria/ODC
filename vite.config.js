@@ -1,13 +1,14 @@
 import { readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import { devContactPlugin } from "./scripts/dev-contact-plugin.mjs";
 
 function collectHtmlFiles(directory, relative = "") {
   const entries = readdirSync(resolve(directory, relative));
   const files = {};
 
   for (const entry of entries) {
-    if (["dist", "node_modules", ".git", ".vercel", "Odyssee", "tmp", "docs"].includes(entry)) {
+    if (["dist", "node_modules", ".git", ".vercel", "Odyssee", "tmp", "docs", "data", "output", "tests"].includes(entry)) {
       continue;
     }
 
@@ -51,37 +52,23 @@ function proxiedRoute() {
   };
 }
 
-export default defineConfig({
-  server: {
-    proxy: {
-      "/api/auth": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true
-      },
-      "/api/admin-auth": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true
-      },
-      "/api/favorites": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true
-      },
-      "/api/admin": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true
-      },
-      "/api/catalog": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true
-      },
-      "/api": proxiedRoute(),
-      "/assets": proxiedRoute(),
-      "/universal": proxiedRoute()
-    }
-  },
-  build: {
-    rollupOptions: {
-      input: collectHtmlFiles(__dirname)
-    }
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  for (const key of ["BREVO_SMTP_USER", "BREVO_SMTP_PASSWORD", "MAIL_FROM", "CONTACT_NOTIFICATION_TO", "CONTACT_SITE_ORIGIN", "CONTACT_VERIFY_ONLY"]) {
+    if (env[key] !== undefined && process.env[key] === undefined) process.env[key] = env[key];
   }
+  return {
+    plugins: [devContactPlugin()],
+    server: {
+      proxy: {
+        "/assets": proxiedRoute(),
+        "/universal": proxiedRoute()
+      }
+    },
+    build: {
+      rollupOptions: {
+        input: collectHtmlFiles(__dirname)
+      }
+    }
+  };
 });
