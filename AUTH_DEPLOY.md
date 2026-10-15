@@ -6,7 +6,7 @@
 - Les favoris sont stockés dans `localStorage`, avec la clé historique `odc-favorites-v1`, par produit et coloris. Ils persistent dans ce navigateur et se synchronisent entre ses onglets. Ils ne se synchronisent pas entre appareils et peuvent disparaître si le stockage du site est effacé. Si le navigateur refuse le stockage, la sélection reste utilisable pendant la visite.
 - `POST /api/contact` est une fonction Node Vercel autonome. Elle transmet le message à la boîte de contact par le relais SMTP Brevo en TLS. Elle ne stocke pas de nouvelle base clients ni de boîte de réception dans Render.
 - Les anciens écrans d'administration affichent une notice. Les anciennes sources serveur sont conservées pour l'archivage et le retour arrière, mais exclues des déploiements Vercel.
-- Les disponibilités sont chargées depuis `public/catalog-statuses.json`. Le fichier livré pour la préversion indique explicitement que les disponibilités de production n'ont pas encore été exportées. Il faut le remplacer par l'export de production avant une bascule qui doit conserver toutes les disponibilités.
+- Les disponibilités sont chargées depuis `public/catalog-statuses.json`. Le fichier livré pour la préversion indique explicitement que les disponibilités de production n'ont pas encore été exportées. La production utilisait déjà les valeurs du catalogue en repli, puisque l'API Render renvoyait HTTP 503. Le nouvel affichage conserve ce repli. Il faudra récupérer et réintégrer les anciens ajustements de disponibilité à partir de l'archive avant toute suppression du disque Render.
 
 ## Configuration du formulaire
 
@@ -89,3 +89,15 @@ npm run build
 ```
 
 Le retrait des comptes et du serveur Render n'efface pas les factures impayées de l'ancien workspace.
+
+## État de livraison au 15 octobre 2026
+
+- Branche source : `codex/public-catalog-local-favorites` ; l'ancienne branche Render est conservée.
+- Préversion vérifiée : `https://odc-preview-65ydmtmof-jarvismidorias-projects.vercel.app`.
+- Nouvelle version promue sur `https://www.odyssee.ma` et `https://odyssee.ma` : déploiement `dpl_AQ8uGqrKzsABLgMiAD3Ajoqfjkwc`.
+- Retour arrière Vercel disponible : `dpl_Gq9kcAkx9bPZrX5MpwBftRf3dxEf`.
+- Identifiants SMTP configurés en production et en préversion. `CONTACT_VERIFY_ONLY` est activé uniquement en préversion et absent en production.
+- Connexion SMTP Brevo vérifiée depuis Vercel avec HTTP 200, sans aucun email réel envoyé. Le domaine `odyssee.ma` est indiqué Authenticated dans Brevo.
+- Parcours catalogue et favoris testés dans le navigateur, sur ordinateur et mobile. Le formulaire refuse correctement les soumissions vides ; les échecs n'effacent pas le texte saisi.
+- Render et son disque n'ont pas été supprimés. L'archive de production reste à récupérer après rétablissement de l'accès. Seule la copie locale est déjà archivée et vérifiée.
+- Aucun abonnement Vercel ou Render n'a été souscrit ou modifié. Le point de régularisation commerciale de Vercel Hobby reste à traiter par le propriétaire.
