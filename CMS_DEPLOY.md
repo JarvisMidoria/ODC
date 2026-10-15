@@ -4,7 +4,7 @@
 
 Studio : https://www.odyssee.ma/admin/ (ancien backoffice remplacé).
 
-Le projet Sanity `odyssee-cms` (`ve9xrq77`, dataset public `production`) est rattaché au compte Vercel du propriétaire. La méthode GitHub doit être reliée au compte propriétaire dans les paramètres personnels Sanity. Un compte Sanity indépendant créé avec la même adresse ne reçoit pas automatiquement les droits du compte Vercel.
+Le projet Sanity `odyssee-cms` (`ve9xrq77`, dataset public `production`) est rattaché au compte Vercel du propriétaire. Le GitHub JarvisMidoria est administrateur du projet : choisir GitHub sur l’écran de connexion du Studio. Son compte Sanity existant a reçu cet accès après autorisation du propriétaire ; le compte créé par Vercel est conservé pour la gestion de l’intégration. Une liaison directe des méthodes a été refusée par Sanity car GitHub était déjà associé à ce compte existant. Aucun compte n’a été supprimé.
 
 Pour l’agence : inviter son adresse dans les membres du projet Sanity, avec le rôle Administrator si elle doit tout gérer sur Free. Aucun accès GitHub, Render, Vercel ni mot de passe du propriétaire n’est nécessaire pour modifier les contenus. Les invitations restent à faire lorsque les adresses de l’agence seront fournies. Le dataset contient uniquement des contenus publics : ne pas y ajouter de messages clients, comptes ou autres données confidentielles.
 
@@ -49,3 +49,10 @@ Render et son disque restent préservés. Le site public, les favoris et le form
 Sanity a été provisionné avec l’offre Free (0 $). Le tableau de bord a activé un essai Growth gratuit de 30 jours et indique explicitement un retour automatique à Free à son terme. Aucun abonnement payant n’a été ajouté et aucune fonction payante n’est requise par ce Studio. Les quotas Free s’appliquent ; ne pas cliquer Upgrade sans décision du propriétaire.
 
 Vercel conserve son abonnement existant. Le formulaire continue de fonctionner via une fonction Vercel et Brevo, avec le même test mensuel et la même surveillance quotidienne Codex. Les destinataires réels du formulaire sont une configuration serveur, distincte de l’adresse publique modifiable dans le CMS. Les favoris restent dans le navigateur et n’exigent aucun compte visiteur.
+
+## Vérifications de mise en service du 15 octobre 2026
+
+- Version Sanity initiale validée puis promue : dpl_nXcXtFago5G1zieawoco9CcraKMs, commit e1b4f7f.
+- Branche de production Vercel confirmée : codex/sanity-cms ; affectation automatique des domaines activée.
+- Publication depuis le Studio avec GitHub : ajout de l’image de partage SEO de Histoire, en réutilisant sa photo existante. Sanity a reçu HTTP 201 du hook Vercel et lancé le déploiement de production dpl_FammMTwDrb1p6mYNmfZHGykA6FkG. Déploiement READY et image og:image effectivement présente dans le HTML public de /histoire/. Aucun texte visible de test n’a été publié.
+- Contrôle après promotion : SMTP vérifié par HEAD sans envoi, cron mensuel actif, aucune erreur du moniteur, preuve du test réel initial conservée.
