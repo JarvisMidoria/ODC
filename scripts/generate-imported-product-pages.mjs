@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { odysseeImportedProducts } from "../src/product-catalog-odyssee-imported.js";
+import { buildSnapshot } from "../cms/content-model.js";
+const published = JSON.parse(await fs.readFile(new URL("../src/cms-published.json", import.meta.url), "utf8"));
+const odysseeImportedProducts = buildSnapshot(published.documents, published.assets).products;
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const productsRoot = path.join(root, "produits", "p");
@@ -25,15 +27,16 @@ function escapeHtml(value = "") {
 }
 
 function pageForProduct(product) {
-  const title = `${product.title} — Odyssée`;
+  const title = product.seo?.title || `${product.title} — Odyssée`;
   const image = product.mainImage?.assetUrl || product.images?.[0]?.assetUrl || "";
-  const description = String(product.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const description = String(product.seo?.description || product.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
   return `<!doctype html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="${product.seo?.noIndex ? "noindex,follow" : "index,follow"}" />
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}" />
     <link rel="canonical" href="https://www.odyssee.ma${product.fullUrl}" />
@@ -55,7 +58,7 @@ function pageForProduct(product) {
   <body class="odc-home-shell odc-cart-shell">
     <div id="odc-home-header-root"></div>
     <main class="odc-cart-main" role="main">
-      <div class="product-detail"></div>
+      <div class="product-detail"><article><h1>${escapeHtml(product.title)}</h1><div>${product.description}</div>${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(product.title)}" />` : ""}</article></div>
     </main>
     <footer id="footer-sections"></footer>
     <script type="module" src="/src/home-navbar.js"></script>

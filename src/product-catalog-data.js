@@ -1,12 +1,8 @@
-import { odysseeImportedProducts } from "./product-catalog-odyssee-imported.js";
+import { cmsData } from "./cms-data.js";
 
-export const productCollections = [
-  { id: "all", path: "/produits", title: "Produits" },
-  { id: "tissu", path: "/produits/tissu", title: "Tissus" },
-  { id: "papier-peint", path: "/produits/papier-peint", title: "Papiers peints" }
-];
+export const productCollections = cmsData.collections;
 
-const products = odysseeImportedProducts;
+const products = cmsData.products;
 
 const collectionByPath = new Map(
   productCollections.flatMap((collection) => [
@@ -59,7 +55,7 @@ export function getProductCatalogItemsForPath(pathname) {
     return productCatalogItems;
   }
 
-  return productCatalogItems.filter((item) => slugifyFilterKey(getProductTypeLabel(item)) === collection.id);
+  return productCatalogItems.filter((item) => item.categoryId === collection.id || slugifyFilterKey(getProductTypeLabel(item)) === collection.id);
 }
 
 export function getProductCatalogItemForPath(pathname) {

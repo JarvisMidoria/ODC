@@ -1,0 +1,222 @@
+{
+  "navItems": [
+    {
+      "href": "/produits",
+      "label": "Produits",
+      "matches": [
+        "/produits",
+        "/produits/",
+        "/produits.html"
+      ]
+    },
+    {
+      "href": "/marques",
+      "label": "Marques",
+      "matches": [
+        "/marques",
+        "/marques/",
+        "/marques.html"
+      ]
+    },
+    {
+      "href": "/contract/",
+      "label": "Contract",
+      "matches": [
+        "/contract",
+        "/contract/",
+        "/contract.html",
+        "/contract/projets",
+        "/contract/projets/",
+        "/contract/a-propos",
+        "/contract/a-propos/",
+        "/contract/clients",
+        "/contract/clients/"
+      ]
+    },
+    {
+      "href": "/histoire.html",
+      "label": "Histoire",
+      "matches": [
+        "/histoire",
+        "/histoire/",
+        "/histoire.html"
+      ]
+    },
+    {
+      "href": "/showrooms.html",
+      "label": "Showrooms",
+      "matches": [
+        "/showrooms",
+        "/showrooms/",
+        "/showroons",
+        "/showroons/",
+        "/showrooms.html"
+      ]
+    }
+  ],
+  "contractAreaNavItems": [
+    {
+      "href": "/contract/",
+      "label": "À propos",
+      "matches": [
+        "/contract",
+        "/contract/",
+        "/contract.html",
+        "/contract/a-propos",
+        "/contract/a-propos/"
+      ]
+    },
+    {
+      "href": "/contract/projets/",
+      "label": "Projets",
+      "matches": [
+        "/contract/projets",
+        "/contract/projets/"
+      ]
+    },
+    {
+      "href": "/contract/clients/",
+      "label": "Clients",
+      "matches": [
+        "/contract/clients",
+        "/contract/clients/"
+      ]
+    }
+  ],
+  "showroomAccordionItems": [
+    {
+      "city": "Casablanca",
+      "address": "1, Avenue Dr Mohamed Sijelmassi (ex Avenue du Phare)",
+      "phoneLabel": "+212 5223-69923",
+      "phoneHref": "tel:+212522369923",
+      "email": "contact@odyssee.ma",
+      "mapHref": "https://maps.google.com/?q=33.592222,-7.641667",
+      "mapEmbed": "https://www.google.com/maps?q=33.592222,-7.641667&z=17&output=embed",
+      "wazeHref": "https://waze.com/ul?ll=33.592222,-7.641667&navigate=yes",
+      "appleHref": "https://maps.apple.com/?ll=33.592222,-7.641667&q=1%20Avenue%20du%20Phare%20R%C3%A9sidence%20Isma%C3%AFlia%20Casablanca%20Morocco"
+    },
+    {
+      "city": "Rabat",
+      "address": "10, Avenue du 16 Novembre - Quartier Agdal",
+      "phoneLabel": "+212 5223-69923",
+      "phoneHref": "tel:+212522369923",
+      "email": "contact@odyssee.ma",
+      "mapHref": "https://maps.google.com/?q=33.9913771,-6.8488065",
+      "mapEmbed": "https://www.google.com/maps?q=33.9913771,-6.8488065&z=17&output=embed",
+      "wazeHref": "https://waze.com/ul?ll=33.9913771,-6.8488065&navigate=yes",
+      "appleHref": "https://maps.apple.com/?ll=33.9913771,-6.8488065&q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco"
+    },
+    {
+      "city": "Tanger",
+      "address": "5-6 angle Rue Ibnou Zaidoune et rue Kortoba",
+      "phoneLabel": "+212 5223-69923",
+      "phoneHref": "tel:+212522369923",
+      "email": "contact@odyssee.ma",
+      "mapHref": "https://maps.google.com/?q=35.7833128,-5.8235286",
+      "mapEmbed": "https://www.google.com/maps?q=35.7833128,-5.8235286&z=17&output=embed",
+      "wazeHref": "https://waze.com/ul?ll=35.7833128,-5.8235286&navigate=yes",
+      "appleHref": "https://maps.apple.com/?ll=35.7833128,-5.8235286&q=5-6%20angle%20Rue%20Ibnou%20Zaidoune%20et%20rue%20Kortoba%20Tanger%20Morocco"
+    }
+  ],
+  "partnerLogos": [
+    {
+      "alt": "Clarke & Clarke",
+      "href": "https://www.clarkeandclarke.design/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-8f6dd1cf-4d96-4315-aabd-de364e9749b5-clarke-clarke-logo.png",
+      "width": "104px",
+      "height": "24px",
+      "basis": "112px",
+      "scale": "1.18",
+      "gridWidth": "214px",
+      "gridHeight": "60px"
+    },
+    {
+      "alt": "Zoffany",
+      "href": "https://www.zoffany.design/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-6c8b16f3-da81-45ca-9c45-50c1b8381a47-zoffany-removebg-preview.png",
+      "width": "82px",
+      "height": "24px",
+      "basis": "122px",
+      "scale": "3.05",
+      "gridWidth": "456px",
+      "gridHeight": "204px"
+    },
+    {
+      "alt": "Morris & Co",
+      "href": "https://www.wmorrisandco.com/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-9c502880-a230-409c-b230-614395c3a339-morris-and-co-logo-vector-removebg-preview.png",
+      "width": "102px",
+      "height": "24px",
+      "basis": "122px",
+      "scale": "1.4",
+      "gridWidth": "210px",
+      "gridHeight": "50px"
+    },
+    {
+      "alt": "Harlequin",
+      "href": "https://www.harlequin.design/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1509a0c9-977a-4a49-8da6-4b3574ff805e-de-mooiste-muren-logo-harlequin-luxe-behang-removebg-preview.png",
+      "width": "108px",
+      "height": "22px",
+      "basis": "120px",
+      "scale": "1.14",
+      "gridWidth": "218px",
+      "gridHeight": "42px"
+    },
+    {
+      "alt": "Prestigious",
+      "href": "https://www.prestigious.co.uk/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1adc85c2-207d-4b47-9ba5-2eb077e26b99-artboard.png",
+      "width": "90px",
+      "height": "24px",
+      "basis": "132px",
+      "scale": "2.8",
+      "gridWidth": "584px",
+      "gridHeight": "136px"
+    },
+    {
+      "alt": "York Wallcoverings",
+      "href": "https://www.yorkwallcoverings.com/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-28581e53-e360-4b74-a198-d10c3d6affea-ywc-logo-2018_400-removebg-preview.png",
+      "width": "104px",
+      "height": "22px",
+      "basis": "118px",
+      "scale": "1.3",
+      "gridWidth": "168px",
+      "gridHeight": "50px"
+    },
+    {
+      "alt": "Alessandro Bini",
+      "href": "https://www.alessandrobini.com/en/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-48718919-f382-4a0e-9407-3bee26450840-alessandrobini-1.png",
+      "width": "96px",
+      "height": "24px",
+      "basis": "140px",
+      "scale": "1.58",
+      "gridWidth": "268px",
+      "gridHeight": "92px"
+    },
+    {
+      "alt": "Aldeco",
+      "href": "https://aldeco.pt/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-fb8c5ffa-5640-4ecd-9447-4dd9a045d577-2021-logo-aldeco-horiz-1024x724-removebg-preview.png",
+      "width": "90px",
+      "height": "24px",
+      "basis": "128px",
+      "scale": "2.4",
+      "gridWidth": "524px",
+      "gridHeight": "116px"
+    },
+    {
+      "alt": "Pedroso & osorio",
+      "href": "https://pedrosoeosorio.pt/en/pedroso-osorio/",
+      "src": "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-0c8a5054-359f-484f-a42e-dcf45ce7c9c2-screenshot_2025-03-13_at_18.31.50-removebg-preview.png",
+      "width": "108px",
+      "height": "22px",
+      "basis": "118px",
+      "scale": "1.6",
+      "gridWidth": "162px",
+      "gridHeight": "52px"
+    }
+  ]
+}

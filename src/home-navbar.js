@@ -1,3 +1,6 @@
+import { cmsData, cmsPreview } from "./cms-data.js";
+import { applyPageToDom } from "../cms/page-render.js";
+import { safeUrl } from "../cms/content-model.js";
 import {
   getProductCatalogItemById,
   getProductCatalogItemForPath,
@@ -27,164 +30,20 @@ import {
 } from "./product-selection.js";
 import { loadSiteContent } from "./site-content.js";
 
-const navItems = [
-  { href: "/produits", label: "Produits", matches: ["/produits", "/produits/","/produits.html"] },
-  { href: "/marques", label: "Marques", matches: ["/marques", "/marques/","/marques.html"] },
-  { href: "/contract/", label: "Contract", matches: ["/contract", "/contract/","/contract.html", "/contract/projets", "/contract/projets/", "/contract/a-propos", "/contract/a-propos/", "/contract/clients", "/contract/clients/"] },
-  { href: "/histoire.html", label: "Histoire", matches: ["/histoire", "/histoire/","/histoire.html"] },
-  { href: "/showrooms.html", label: "Showrooms", matches: ["/showrooms", "/showrooms/","/showroons","/showroons/","/showrooms.html"] }
-];
+const navItems = cmsData.settings.navigation;
 
-const contractAreaNavItems = [
-  { href: "/contract/", label: "À propos", matches: ["/contract", "/contract/", "/contract.html", "/contract/a-propos", "/contract/a-propos/"] },
-  { href: "/contract/projets/", label: "Projets", matches: ["/contract/projets", "/contract/projets/"] },
-  { href: "/contract/clients/", label: "Clients", matches: ["/contract/clients", "/contract/clients/"] }
-];
+const contractAreaNavItems = cmsData.settings.contractNavigation;
 
 const logo =
-  "/custom-assets/logo-odv-black.png";
-const contractAreaLogo = "/custom-assets/odyssee-contract-black.png";
-const footerLogo = "/custom-assets/logo-odc-white.png";
+  cmsData.settings.logo || "/custom-assets/logo-odv-black.png";
+const contractAreaLogo = cmsData.settings.contractLogo || "/custom-assets/odyssee-contract-black.png";
+const footerLogo = cmsData.settings.footerLogo || "/custom-assets/logo-odc-white.png";
 const homeVideo = "/custom-assets/odyssee-video-global-web.mp4";
 const homeCard = "/custom-assets/carte-odc.png";
 const showroomsFacade = "/custom-assets/showrooms-chatgpt-06042026-010433.png";
-const showroomAccordionItems = [
-  {
-    city: "Casablanca",
-    address: "1, Avenue Dr Mohamed Sijelmassi (ex Avenue du Phare)",
-    phoneLabel: "+212 5223-69923",
-    phoneHref: "tel:+212522369923",
-    email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=33.592222,-7.641667",
-    mapEmbed: "https://www.google.com/maps?q=33.592222,-7.641667&z=17&output=embed",
-    wazeHref: "https://waze.com/ul?ll=33.592222,-7.641667&navigate=yes",
-    appleHref: "https://maps.apple.com/?ll=33.592222,-7.641667&q=1%20Avenue%20du%20Phare%20R%C3%A9sidence%20Isma%C3%AFlia%20Casablanca%20Morocco"
-  },
-  {
-    city: "Rabat",
-    address: "10, Avenue du 16 Novembre - Quartier Agdal",
-    phoneLabel: "+212 5223-69923",
-    phoneHref: "tel:+212522369923",
-    email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=33.9913771,-6.8488065",
-    mapEmbed: "https://www.google.com/maps?q=33.9913771,-6.8488065&z=17&output=embed",
-    wazeHref: "https://waze.com/ul?ll=33.9913771,-6.8488065&navigate=yes",
-    appleHref: "https://maps.apple.com/?ll=33.9913771,-6.8488065&q=10%20Avenue%20du%2016%20Novembre%20Agdal%20Rabat%20Morocco"
-  },
-  {
-    city: "Tanger",
-    address: "5-6 angle Rue Ibnou Zaidoune et rue Kortoba",
-    phoneLabel: "+212 5223-69923",
-    phoneHref: "tel:+212522369923",
-    email: "contact@odyssee.ma",
-    mapHref: "https://maps.google.com/?q=35.7833128,-5.8235286",
-    mapEmbed: "https://www.google.com/maps?q=35.7833128,-5.8235286&z=17&output=embed",
-    wazeHref: "https://waze.com/ul?ll=35.7833128,-5.8235286&navigate=yes",
-    appleHref: "https://maps.apple.com/?ll=35.7833128,-5.8235286&q=5-6%20angle%20Rue%20Ibnou%20Zaidoune%20et%20rue%20Kortoba%20Tanger%20Morocco"
-  }
-];
+const showroomAccordionItems = cmsData.settings.showrooms || [];
 
-const partnerLogos = [
-  {
-    alt: "Clarke & Clarke",
-    href: "https://www.clarkeandclarke.design/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-8f6dd1cf-4d96-4315-aabd-de364e9749b5-clarke-clarke-logo.png",
-    width: "104px",
-    height: "24px",
-    basis: "112px",
-    scale: "1.18",
-    gridWidth: "214px",
-    gridHeight: "60px"
-  },
-  {
-    alt: "Zoffany",
-    href: "https://www.zoffany.design/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-6c8b16f3-da81-45ca-9c45-50c1b8381a47-zoffany-removebg-preview.png",
-    width: "82px",
-    height: "24px",
-    basis: "122px",
-    scale: "3.05",
-    gridWidth: "456px",
-    gridHeight: "204px"
-  },
-  {
-    alt: "Morris & Co",
-    href: "https://www.wmorrisandco.com/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-9c502880-a230-409c-b230-614395c3a339-morris-and-co-logo-vector-removebg-preview.png",
-    width: "102px",
-    height: "24px",
-    basis: "122px",
-    scale: "1.4",
-    gridWidth: "210px",
-    gridHeight: "50px"
-  },
-  {
-    alt: "Harlequin",
-    href: "https://www.harlequin.design/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1509a0c9-977a-4a49-8da6-4b3574ff805e-de-mooiste-muren-logo-harlequin-luxe-behang-removebg-preview.png",
-    width: "108px",
-    height: "22px",
-    basis: "120px",
-    scale: "1.14",
-    gridWidth: "218px",
-    gridHeight: "42px"
-  },
-  {
-    alt: "Prestigious",
-    href: "https://www.prestigious.co.uk/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-1adc85c2-207d-4b47-9ba5-2eb077e26b99-artboard.png",
-    width: "90px",
-    height: "24px",
-    basis: "132px",
-    scale: "2.8",
-    gridWidth: "584px",
-    gridHeight: "136px"
-  },
-  {
-    alt: "York Wallcoverings",
-    href: "https://www.yorkwallcoverings.com/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-28581e53-e360-4b74-a198-d10c3d6affea-ywc-logo-2018_400-removebg-preview.png",
-    width: "104px",
-    height: "22px",
-    basis: "118px",
-    scale: "1.3",
-    gridWidth: "168px",
-    gridHeight: "50px"
-  },
-  {
-    alt: "Alessandro Bini",
-    href: "https://www.alessandrobini.com/en/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-48718919-f382-4a0e-9407-3bee26450840-alessandrobini-1.png",
-    width: "96px",
-    height: "24px",
-    basis: "140px",
-    scale: "1.58",
-    gridWidth: "268px",
-    gridHeight: "92px"
-  },
-  {
-    alt: "Aldeco",
-    href: "https://aldeco.pt/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-fb8c5ffa-5640-4ecd-9447-4dd9a045d577-2021-logo-aldeco-horiz-1024x724-removebg-preview.png",
-    width: "90px",
-    height: "24px",
-    basis: "128px",
-    scale: "2.4",
-    gridWidth: "524px",
-    gridHeight: "116px"
-  },
-  {
-    alt: "Pedroso & osorio",
-    href: "https://pedrosoeosorio.pt/en/pedroso-osorio/",
-    src: "/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-0c8a5054-359f-484f-a42e-dcf45ce7c9c2-screenshot_2025-03-13_at_18.31.50-removebg-preview.png",
-    width: "108px",
-    height: "22px",
-    basis: "118px",
-    scale: "1.6",
-    gridWidth: "162px",
-    gridHeight: "52px"
-  }
-];
+const partnerLogos = cmsData.brands;
 
 const siteContent = loadSiteContent();
 
@@ -626,6 +485,7 @@ function replaceShowroomsAccordion() {
   const localLinks = document.querySelector(".odc-showrooms-links");
   const modal = document.querySelector(".odc-showrooms-modal");
   if (localLinks && modal) {
+    localLinks.innerHTML = showroomAccordionItems.map(item => `<button class="odc-showrooms-links__item" type="button" data-showroom-city="${escapeHtml(item.city)}">${escapeHtml(item.city)}</button>`).join("");
     localLinks.querySelectorAll("[data-showroom-city]").forEach((button, index) => {
       if (siteContent.showrooms?.cities?.[index]) {
         button.textContent = siteContent.showrooms.cities[index];
@@ -655,12 +515,12 @@ function replaceShowroomsAccordion() {
         email.setAttribute("href", `mailto:${item.email}`);
       }
       if (map) {
-        map.setAttribute("src", item.mapEmbed);
+        map.setAttribute("src", safeUrl(item.mapEmbed));
         map.setAttribute("title", `Carte ${item.city}`);
       }
-      if (googleLink) googleLink.setAttribute("href", item.mapHref);
-      if (wazeLink) wazeLink.setAttribute("href", item.wazeHref);
-      if (appleLink) appleLink.setAttribute("href", item.appleHref);
+      if (googleLink) googleLink.setAttribute("href", safeUrl(item.mapHref, "#"));
+      if (wazeLink) wazeLink.setAttribute("href", safeUrl(item.wazeHref, "#"));
+      if (appleLink) appleLink.setAttribute("href", safeUrl(item.appleHref, "#"));
 
       modal.hidden = false;
       body.classList.add("odc-showrooms-modal-open");
@@ -2387,9 +2247,9 @@ function renderCustomProductGrid(state) {
                   <button class="odc-product-card__quick-view" type="button" aria-pressed="false" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     Vue rapide
                   </button>
-                  <button class="odc-product-card__open" type="button" aria-label="Voir ${title}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
+                  <button class="odc-product-card__open" type="button" aria-label="Voir ${escapeHtml(title)}" data-product-index="${sourceIndex}" data-colorway-index="${colorwayIndex}">
                     <div class="odc-product-card__media">
-                      <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" data-fallback-src="${escapeHtml(primaryFallback)}" alt="${escapeHtml(title)}" loading="${imageLoading}" decoding="async" ${visibleIndex < 8 ? 'fetchpriority="high"' : ""} />
+                      <img class="odc-product-card__image odc-product-card__image--primary" src="${primary}" data-fallback-src="${escapeHtml(primaryFallback)}" alt="${escapeHtml(getProductMainImage(product, colorway)?.title || title)}" loading="${imageLoading}" decoding="async" ${visibleIndex < 8 ? 'fetchpriority="high"' : ""} />
                       ${
                         secondary
                           ? `<img class="odc-product-card__image odc-product-card__image--secondary" data-secondary-src="${secondary}" data-fallback-src="${escapeHtml(secondaryFallback)}" alt="" decoding="async" />`
@@ -2711,7 +2571,7 @@ function renderProductDiscoveryImage(state, overlay, product) {
       preloadProductDiscoveryImage(current.assetUrl);
       stageImage.src = current.assetUrl;
     }
-    stageImage.alt = colorway ? `${product.title} ${colorway.label}` : product.title;
+    stageImage.alt = current.title || (colorway ? `${product.title} ${colorway.label}` : product.title);
   }
 
   preloadProductDiscoveryImage(previous?.assetUrl);
@@ -3553,7 +3413,7 @@ function buildLocalProductDetailMarkup(product, state) {
                 <img
                   class="odc-local-product-gallery__image"
                   src="${activeImage?.assetUrl || ""}"
-                  alt="${escapeHtml(product.title)}"
+                  alt="${escapeHtml(activeImage?.title || product.title)}"
                   loading="eager"
                   decoding="async"
                 />
@@ -3619,7 +3479,7 @@ async function enableLocalProductDetail() {
   root.removeAttribute("data-controller");
   root.removeAttribute("data-context");
   root.setAttribute("data-product-id", product.id);
-  document.title = `${product.title} — Odyssée`;
+  document.title = product.seo?.title || `${product.title} — Odyssée`;
 
   const setLocalDetailZoom = (imageWrap, clientX, clientY) => {
     if (!(imageWrap instanceof HTMLElement)) {
@@ -3834,8 +3694,42 @@ async function enableLocalProductDetail() {
   document.addEventListener(PRODUCT_STATUS_CHANGE_EVENT, syncProductDetail);
 }
 
+function applyCmsContent() {
+  const settings = cmsData.settings;
+  document.querySelectorAll('.odc-home-cta,.odc-home-mobile-cta').forEach(node => { node.textContent = settings.contactCta || 'Prendre contact'; });
+  const footerList = document.querySelector('.odc-footer__list');
+  if (footerList) footerList.innerHTML = `
+    <li><span class="odc-footer__icon">${footerIcon('mail')}</span><a href="mailto:${escapeHtml(settings.email)}">${escapeHtml(settings.email)}</a></li>
+    <li><span class="odc-footer__icon">${footerIcon('phone')}</span><a href="tel:${escapeHtml((settings.phone || '').replace(/[^+0-9]/g, ''))}">${escapeHtml(settings.phone)}</a></li>
+    ${(settings.showrooms || []).map(item => `<li><span class="odc-footer__icon">${footerIcon('pin')}</span><span>${escapeHtml(item.address)} - ${escapeHtml(item.city)}, Maroc${item.hours ? `<br>${escapeHtml(item.hours)}` : ''}</span></li>`).join('')}`;
+  const socials = document.querySelector('.odc-footer__socials');
+  if (socials) socials.innerHTML = (settings.socialLinks || []).map(item => `<a href="${escapeHtml(safeUrl(item.href, '#'))}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(item.label)}">${footerIcon(item.label?.toLowerCase()) || escapeHtml(item.label)}</a>`).join('');
+  const contact = document.querySelector('.odc-contract-modal');
+  if (contact) {
+    const title = contact.querySelector('.odc-contract-section__title'); if (title) title.textContent = settings.contactTitle || 'Parlons de votre projet.';
+    const intro = contact.querySelector('.odc-contract-modal__lede'); if (intro) intro.textContent = settings.contactIntro || '';
+    const info = contact.querySelector('.odc-contract-modal__list');
+    if (info) info.innerHTML = `<li><strong>Email</strong><span>${escapeHtml(settings.email)}</span></li><li><strong>Téléphone</strong><span>${escapeHtml(settings.phone)}</span></li>${(settings.showrooms || []).map(item => `<li><strong>${escapeHtml(item.city)}</strong><span>${escapeHtml(item.address)}</span></li>`).join('')}`;
+  }
+  let currentPath = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\.html$/, '').replace(/\/$/, '');
+  if (currentPath === '/home') currentPath = '';
+  if (currentPath === '/showroons') currentPath = '/showrooms';
+  if (currentPath === '/contract/a-propos') currentPath = '/contract';
+  const previewDocument = new URLSearchParams(window.location.search).get('document');
+  const page = cmsData.pages.find(item => item.path.replace(/\/$/, '') === currentPath || (cmsPreview && item._id === previewDocument));
+  if (page) {
+    applyPageToDom(page, cmsData.assets);
+    const title = document.querySelector('[data-cms-page-title]'); if (title) title.textContent = page.title;
+    document.title = page.seo?.title || `${page.title} — Odyssée`;
+  }
+  if (cmsPreview) {
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.append(robots); }
+    robots.content = 'noindex,nofollow';
+  }
+}
+
 function initializeOdcSite() {
-  loadProductStatusOverrides();
   updateCartIndicators();
   updateFavoriteIndicators();
   replaceFooter();
@@ -3854,6 +3748,7 @@ function initializeOdcSite() {
   enableLocalProductDetail();
   enableLocalCartPage();
   enableFavoritesPage();
+  applyCmsContent();
 }
 
 if (document.readyState === "loading") {

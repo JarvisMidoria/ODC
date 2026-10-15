@@ -1,3 +1,4 @@
+import { cmsData } from "./cms-data.js";
 export const SITE_CONTENT_STORAGE_KEY = "odc-site-content-v1";
 
 export const ADMIN_ASSET_OPTIONS = [
@@ -82,52 +83,5 @@ function mergeContent(base, override) {
 }
 
 export function loadSiteContent() {
-  if (typeof window === "undefined") {
-    return clone(DEFAULT_SITE_CONTENT);
-  }
-
-  try {
-    const raw = window.localStorage.getItem(SITE_CONTENT_STORAGE_KEY);
-    if (!raw) {
-      return clone(DEFAULT_SITE_CONTENT);
-    }
-
-    const merged = mergeContent(clone(DEFAULT_SITE_CONTENT), JSON.parse(raw));
-    if (merged.contract?.heroImage === "/custom-assets/contract-chatgpt-06042026-022226.png") {
-      merged.contract.heroImage = "/custom-assets/contract-hotel-bed-66040964.jpg";
-    }
-    if (Array.isArray(merged.home?.shortcuts)) {
-      merged.home.shortcuts = merged.home.shortcuts.map((item) => {
-        if (item.id === "mood-boards") {
-          return { ...item, href: "/mood-boards/" };
-        }
-        if (item.id === "wallpapers") {
-          return { ...item, href: "/produits/?type=papier-peint" };
-        }
-        if (item.id === "press-book") {
-          return { ...item, href: "/press-book/" };
-        }
-        return item;
-      });
-    }
-    return merged;
-  } catch {
-    return clone(DEFAULT_SITE_CONTENT);
-  }
-}
-
-export function saveSiteContent(content) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(SITE_CONTENT_STORAGE_KEY, JSON.stringify(content));
-}
-
-export function resetSiteContent() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.removeItem(SITE_CONTENT_STORAGE_KEY);
+  return mergeContent(clone(DEFAULT_SITE_CONTENT), cmsData.siteContent);
 }

@@ -1,4 +1,11 @@
 {
+  "headers": [
+    { "source": "/admin/:path*", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+      { "key": "Referrer-Policy", "value": "strict-origin" }
+    ] }
+  ],
   "crons": [
     {
       "path": "/api/contact-monthly-test",
@@ -6,6 +13,10 @@
     }
   ],
   "redirects": [
+    { "source": "/admin.html", "destination": "/admin/", "permanent": false },
+    { "source": "/admin-inbox", "destination": "/admin/", "permanent": false },
+    { "source": "/admin-inbox/", "destination": "/admin/", "permanent": false },
+    { "source": "/admin-inbox.html", "destination": "/admin/", "permanent": false },
     {
       "source": "/contacter",
       "destination": "/?contact=1",
@@ -18,6 +29,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/admin/:path*", "destination": "/admin/index.html" },
     {
       "source": "/custom-assets/(.*)",
       "destination": "/public/custom-assets/$1"

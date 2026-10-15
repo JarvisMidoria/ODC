@@ -2,6 +2,7 @@ import { readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import { devContactPlugin } from "./scripts/dev-contact-plugin.mjs";
+import { sanityContentPlugin } from "./cms/vite-plugin.mjs";
 
 function collectHtmlFiles(directory, relative = "") {
   const entries = readdirSync(resolve(directory, relative));
@@ -58,7 +59,7 @@ export default defineConfig(({ mode }) => {
     if (env[key] !== undefined && process.env[key] === undefined) process.env[key] = env[key];
   }
   return {
-    plugins: [devContactPlugin()],
+    plugins: [devContactPlugin(), sanityContentPlugin()],
     server: {
       proxy: {
         "/assets": proxiedRoute(),

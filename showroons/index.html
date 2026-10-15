@@ -1,11 +1,73 @@
-<!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!DOCTYPE html><html lang="fr"><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Showrooms — Odyssée</title>
-    <meta http-equiv="refresh" content="0; url=/showrooms/" />
-    <link rel="canonical" href="https://www.odyssee.ma/showrooms/" />
+    <meta name="description" content="Découvrez les showrooms Odyssée au Maroc.">
+    <link rel="icon" type="image/x-icon" href="/mirrored-assets/images-squarespace-cdn-com-677ec6234f6cb47c166aec02-ca529fb2-ea08-4095-ad9c-b15a09eab42f-favicon.ico?format=100w">
+    <link rel="stylesheet" href="/src/home-navbar.css">
   </head>
-  <body></body>
-</html>
+  <body class="odc-home-shell odc-showrooms-page">
+    <div id="odc-home-header-root"></div>
+    <div id="siteWrapper">
+      <main class="odc-showrooms-main">
+        <section class="odc-showrooms-hero" aria-labelledby="odc-showrooms-title">
+          <div class="odc-showrooms-hero__inner">
+            <div class="odc-showrooms-hero__image">
+              <img src="/custom-assets/showrooms-chatgpt-06042026-010433.png" alt="Showroom ODC" data-odc-cms="media-0">
+            </div>
+          </div>
+        </section>
+
+        <section class="odc-showrooms-content" aria-label="Villes">
+          <div class="odc-showrooms-links" aria-label="Showrooms Odyssée">
+            <button class="odc-showrooms-links__item" type="button" data-showroom-city="Casablanca" data-odc-cms="text-0">Casablanca</button>
+            <button class="odc-showrooms-links__item" type="button" data-showroom-city="Rabat" data-odc-cms="text-1">Rabat</button>
+            <button class="odc-showrooms-links__item" type="button" data-showroom-city="Tanger" data-odc-cms="text-2">Tanger</button>
+          </div>
+        </section>
+      </main>
+
+      <footer id="footer-sections"></footer>
+    </div>
+
+    <div class="odc-showrooms-modal" hidden="">
+      <div class="odc-showrooms-modal__backdrop" data-showroom-close=""></div>
+      <div class="odc-showrooms-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="odc-showrooms-modal-title">
+        <button class="odc-showrooms-modal__close" type="button" aria-label="Fermer" data-showroom-close=""></button>
+        <div class="odc-showrooms-modal__grid">
+          <div class="odc-showrooms-modal__copy">
+            <p class="odc-showrooms-modal__eyebrow">Showroom</p>
+            <h2 id="odc-showrooms-modal-title" class="odc-showrooms-modal__title"></h2>
+            <p class="odc-showrooms-modal__lede">Découvrez les informations du showroom et repérez-le directement sur la carte.</p>
+            <div class="odc-showrooms-modal__details">
+              <section class="odc-showrooms-modal__detail">
+                <p class="odc-showrooms-modal__label">Adresse</p>
+                <p class="odc-showrooms-modal__meta" data-showroom-address=""></p>
+              </section>
+              <section class="odc-showrooms-modal__detail">
+                <p class="odc-showrooms-modal__label">Téléphone</p>
+                <p class="odc-showrooms-modal__meta"><a data-showroom-phone="" href=""></a></p>
+              </section>
+              <section class="odc-showrooms-modal__detail">
+                <p class="odc-showrooms-modal__label">Email</p>
+                <p class="odc-showrooms-modal__meta"><a data-showroom-email="" href=""></a></p>
+              </section>
+            </div>
+            <div class="odc-showrooms-modal__actions">
+              <a data-showroom-google="" href="" target="_blank" rel="noreferrer">Google Maps</a>
+              <a data-showroom-waze="" href="" target="_blank" rel="noreferrer">Waze</a>
+              <a data-showroom-apple="" href="" target="_blank" rel="noreferrer">Maps</a>
+            </div>
+          </div>
+          <div class="odc-showrooms-modal__map">
+            <p class="odc-showrooms-modal__map-label">Localisation</p>
+            <iframe data-showroom-map="" src="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Carte du showroom"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/home-navbar.js"></script>
+  
+
+</body></html>
