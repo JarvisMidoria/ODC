@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import nodemailer from "nodemailer";
+import { contactMailConfig, createContactTransport, assertAcceptedRecipient } from "../lib/contact-mail.js";
 
 const MAX_BODY_BYTES = 24 * 1024;
 const EMAIL = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -99,14 +99,12 @@ export default async function contact(req, res) {
       (values.subject === "professional" && !values.sector)) {
     return reply(res, 400, { error: "Merci de compléter les champs requis avec une adresse email valide." });
   }
-  const smtpUser = process.env.BREVO_SMTP_USER?.trim();
-  const smtpPassword = process.env.BREVO_SMTP_PASSWORD?.trim();
+  const config = contactMailConfig();
   const verifyOnly = process.env.CONTACT_VERIFY_ONLY === "1";
-  const sender = (process.env.MAIL_FROM || "noreply@odyssee.ma").trim();
-  const recipient = (process.env.CONTACT_NOTIFICATION_TO || "contact@odyssee.ma").trim();
-  if (!smtpUser || !smtpPassword || !EMAIL.test(sender) || !EMAIL.test(recipient) || (verifyOnly && process.env.VERCEL_ENV === "production")) {
+  if (!config || (verifyOnly && process.env.VERCEL_ENV === "production")) {
     return reply(res, 503, { error: "Le formulaire est temporairement indisponible. Écrivez à contact@odyssee.ma." });
   }
+  const { sender, recipient } = config;
   if (rateLimited(req)) {
     res.setHeader("Retry-After", "900");
     return reply(res, 429, { error: "Trop de messages envoyés. Réessayez plus tard ou écrivez à contact@odyssee.ma." });
@@ -119,18 +117,7 @@ export default async function contact(req, res) {
     "", values.message
   ].join("\n");
   try {
-    const transport = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      auth: { user: smtpUser, pass: smtpPassword },
-      connectionTimeout: 10_000,
-      greetingTimeout: 8_000,
-      socketTimeout: 12_000,
-      disableFileAccess: true,
-      disableUrlAccess: true
-    });
+    const transport = createContactTransport(config);
     if (verifyOnly) {
       // Preview verification authenticates to SMTP but never submits an email.
       await transport.verify();
@@ -144,10 +131,7 @@ export default async function contact(req, res) {
       text: textContent,
       html: `<div style="font-family:Arial,sans-serif;line-height:1.6">${escapeHtml(textContent).replace(/\n/g, "<br>")}</div>`
     });
-    const accepted = (result.accepted || []).some((item) =>
-      String(typeof item === "string" ? item : item.address).toLowerCase() === recipient.toLowerCase()
-    );
-    if (!result.messageId || !accepted) throw new Error("SMTP did not accept recipient");
+    assertAcceptedRecipient(result, recipient);
     return reply(res, 201, { success: true, message: "Merci. Votre message a bien été envoyé à notre équipe." });
   } catch (error) {
     // Never log the SMTP credentials or the visitor's message.

@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/contact-monthly-test",
+      "schedule": "0 8 1 * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/contacter",
