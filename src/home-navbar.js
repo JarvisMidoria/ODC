@@ -1,4 +1,7 @@
 import { cmsData, cmsPreview } from "./cms-data.js";
+import publishedContactForm from "../lib/contact-form-published.json";
+import { normalizeContactFields } from "../lib/contact-form.js";
+import { mountContactForm } from "./contact-form.js";
 import { applyPageToDom } from "../cms/page-render.js";
 import { safeUrl } from "../cms/content-model.js";
 import {
@@ -805,10 +808,12 @@ function enableContractContactModal() {
   const openButtons = document.querySelectorAll("[data-contract-contact-open]");
   const closeButtons = document.querySelectorAll("[data-contract-contact-close]");
   const form = document.querySelector("#odc-contract-contact-form");
-  const feedback = document.querySelector("#odc-contract-contact-feedback");
-  const subjectSelect = form?.querySelector('select[name="subject"]');
-  const sectorField = form?.querySelector("[data-contract-sector-field]");
-  const sectorSelect = form?.querySelector("[data-contract-sector-select]");
+  let contactConfig = publishedContactForm;
+  if (cmsPreview) {
+    try { contactConfig = { version: 'preview', fields: normalizeContactFields(cmsData.settings.contactFields), submitLabel: cmsData.settings.contactSubmitLabel || 'Envoyer' }; }
+    catch { contactConfig = publishedContactForm; }
+  }
+  mountContactForm(form, contactConfig, { preview: cmsPreview });
 
   if (!modal || !openButtons.length) {
     return;
@@ -819,26 +824,6 @@ function enableContractContactModal() {
       item.hidden = true;
     });
   };
-
-  const syncSectorField = () => {
-    if (!subjectSelect || !sectorField || !sectorSelect) {
-      return;
-    }
-
-    const showSector = subjectSelect.value === "professional";
-    sectorField.hidden = !showSector;
-    sectorSelect.required = showSector;
-    if (!showSector) {
-      sectorSelect.value = "";
-    }
-  };
-
-  syncSectorField();
-
-  if (subjectSelect && subjectSelect.dataset.odcContractSubjectReady !== "true") {
-    subjectSelect.dataset.odcContractSubjectReady = "true";
-    subjectSelect.addEventListener("change", syncSectorField);
-  }
 
   const openModal = () => {
     closeInfoModals();
@@ -899,8 +884,10 @@ function enableContractContactModal() {
   if (contactParam === "1" && modal.dataset.odcContactParamHandled !== "true") {
     modal.dataset.odcContactParamHandled = "true";
     openModal();
-    const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
-    window.history.replaceState({}, "", cleanUrl);
+    if (!cmsPreview) {
+      const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
+      window.history.replaceState({}, "", cleanUrl);
+    }
   }
 
   closeButtons.forEach((button) => {
@@ -911,62 +898,6 @@ function enableContractContactModal() {
     button.dataset.odcContractCloseReady = "true";
     button.addEventListener("click", closeModal);
   });
-
-  if (form && form.dataset.odcSubmitReady !== "true") {
-    form.dataset.odcSubmitReady = "true";
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const submitButton = form.querySelector('button[type="submit"]');
-      const formData = new FormData(form);
-      const payload = {
-        name: String(formData.get("name") || "").trim(),
-        email: String(formData.get("email") || "").trim(),
-        phone: String(formData.get("phone") || "").trim(),
-        subject: String(formData.get("subject") || "").trim(),
-        sector: String(formData.get("sector") || "").trim(),
-        message: String(formData.get("message") || "").trim(),
-        website: String(formData.get("website") || ""),
-        source: "contract-modal"
-      };
-
-      if (submitButton instanceof HTMLButtonElement) {
-        submitButton.disabled = true;
-      }
-
-      if (feedback) {
-        feedback.textContent = "Envoi en cours…";
-      }
-
-      try {
-        const response = await fetch("/api/contact", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-        const responseBody = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(responseBody?.error || "Impossible d’envoyer votre message.");
-        }
-
-        form.reset();
-        syncSectorField();
-        if (feedback) {
-          feedback.textContent = responseBody?.message || "Merci. Votre message a bien été envoyé.";
-        }
-      } catch (error) {
-        if (feedback) {
-          feedback.textContent = error.message || "Impossible d’envoyer votre message.";
-        }
-      } finally {
-        if (submitButton instanceof HTMLButtonElement) {
-          submitButton.disabled = false;
-        }
-      }
-    });
-  }
 
   if (!modal.dataset.odcEscapeReady) {
     modal.dataset.odcEscapeReady = "true";

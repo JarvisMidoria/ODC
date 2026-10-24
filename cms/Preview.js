@@ -7,7 +7,7 @@ export function Preview({ document: doc }) {
   const [payload, setPayload] = useState(null);
   const value = doc?.displayed;
   const raw = JSON.stringify(value || {});
-  const path = value?._type === 'product' ? `/product.html?product=${encodeURIComponent(value.legacyId || value._id?.replace(/^drafts\./, ''))}` : value?.legacyPage ? value.path : `/cms-preview.html?document=${encodeURIComponent(value?._id?.replace(/^drafts\./, '') || '')}`;
+  const path = value?._type === 'siteSettings' ? '/?contact=1' : value?._type === 'product' ? `/product.html?product=${encodeURIComponent(value.legacyId || value._id?.replace(/^drafts\./, ''))}` : value?.legacyPage ? value.path : `/cms-preview.html?document=${encodeURIComponent(value?._id?.replace(/^drafts\./, '') || '')}`;
   const url = `${window.location.origin}${path}${path.includes('?') ? '&' : '?'}_odcPreview=1`;
   const send = () => { if (payload) frame.current?.contentWindow?.postMessage({ type: 'odc-cms-preview', ...payload }, window.location.origin); };
   useEffect(() => {
@@ -17,7 +17,7 @@ export function Preview({ document: doc }) {
     return () => { active = false; };
   }, [raw, client]);
   useEffect(send, [payload]);
-  if (!['product', 'sitePage'].includes(value?._type)) return React.createElement('p', { style: { padding: 24 } }, 'Consultez le site après publication pour vérifier ces réglages globaux.');
+  if (!['product', 'sitePage', 'siteSettings'].includes(value?._type)) return React.createElement('p', { style: { padding: 24 } }, 'Consultez le site après publication pour vérifier ces réglages globaux.');
   if (value?._type === 'product' && !value.slug?.current) return React.createElement('p', { style: { padding: 24 } }, 'Renseignez le nom et l’adresse de la fiche pour afficher la prévisualisation.');
   return React.createElement('div', { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
     React.createElement('p', { style: { padding: '8px 16px', margin: 0, fontSize: 13 } }, 'Brouillon : cette prévisualisation ne modifie pas le site public.'),

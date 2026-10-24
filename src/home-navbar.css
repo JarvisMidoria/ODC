@@ -1615,6 +1615,11 @@ body.odc-home-shell {
   display: none;
 }
 
+.odc-contact-field[hidden] { display: none; }
+.odc-contact-field-help { display: block; margin-top: 0.4rem; color: rgba(17,17,17,0.65); line-height: 1.5; }
+.odc-contact-field--checkbox label { display: flex; align-items: flex-start; gap: 0.7rem; }
+.odc-contact-field--checkbox input[type="checkbox"] { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; padding: 0; margin: 0.15rem 0 0; appearance: auto; accent-color: #111; }
+
 .odc-contract-form__submit {
   border: 1px solid #111;
   background: #111;

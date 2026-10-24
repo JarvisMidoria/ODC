@@ -1,14 +1,10 @@
 import { createHash } from "node:crypto";
+import formConfig from "../lib/contact-form-published.json" with { type: "json" };
+import { normalizeContactFields, validateContactValues } from "../lib/contact-form.js";
 import { contactMailConfig, createContactTransport, assertAcceptedRecipient } from "../lib/contact-mail.js";
 
 const MAX_BODY_BYTES = 24 * 1024;
-const EMAIL = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
-const SUBJECTS = {
-  showroom: "Visite showroom",
-  residential: "Projet résidentiel",
-  professional: "Projet professionnel",
-  contract: "Projet contract"
-};
+const legacyCompatible = JSON.stringify(formConfig.fields) === JSON.stringify(normalizeContactFields());
 const attempts = new Map();
 const WINDOW_MS = 15 * 60 * 1000;
 
@@ -85,20 +81,18 @@ export default async function contact(req, res) {
   }
   if (payload.website) return reply(res, 400, { error: "Message invalide." });
 
-  const values = {};
-  for (const [field, limit] of Object.entries({ name: 150, email: 254, phone: 60, subject: 40, sector: 100, message: 8000 })) {
-    if (payload[field] !== undefined && typeof payload[field] !== "string") {
-      return reply(res, 400, { error: "Champs invalides." });
-    }
-    values[field] = (payload[field] || "").trim();
-    if (values[field].length > limit || (field !== "message" && /[\r\n]/.test(values[field]))) {
-      return reply(res, 400, { error: "Champs invalides ou trop longs." });
-    }
+  let input;
+  if (payload.formVersion === formConfig.version) {
+    input = payload.fields;
+  } else if (!Object.hasOwn(payload, 'formVersion') && !Object.hasOwn(payload, 'fields') && legacyCompatible) {
+    // Cached pages from the previous release remain usable with the original form.
+    input = Object.fromEntries(formConfig.fields.filter(field => Object.hasOwn(payload, field.id)).map(field => [field.id, payload[field.id]]));
+  } else {
+    return reply(res, 409, { error: "Le formulaire a changé. Copiez vos réponses puis actualisez la page avant de réessayer." });
   }
-  if (!values.name || !EMAIL.test(values.email) || !Object.hasOwn(SUBJECTS, values.subject) || !values.message ||
-      (values.subject === "professional" && !values.sector)) {
-    return reply(res, 400, { error: "Merci de compléter les champs requis avec une adresse email valide." });
-  }
+  const validated = validateContactValues(formConfig.fields, input);
+  if (validated.error) return reply(res, 400, { error: validated.error });
+  const { answers } = validated;
   const config = contactMailConfig();
   const verifyOnly = process.env.CONTACT_VERIFY_ONLY === "1";
   if (!config || (verifyOnly && process.env.VERCEL_ENV === "production")) {
@@ -110,11 +104,12 @@ export default async function contact(req, res) {
     return reply(res, 429, { error: "Trop de messages envoyés. Réessayez plus tard ou écrivez à contact@odyssee.ma." });
   }
 
+  const visitorEmail = answers.find(answer => answer.type === 'email' && answer.value)?.value;
+  const visitorName = answers.find(answer => answer.id === 'name' && answer.type === 'text')?.value || 'Visiteur';
+  const subject = answers.find(answer => answer.id === 'subject')?.display;
   const textContent = [
     "Nouveau message depuis le site Odyssée", "",
-    `Sujet : ${SUBJECTS[values.subject]}`, `Nom : ${values.name}`, `Email : ${values.email}`,
-    `Téléphone : ${values.phone || "Non renseigné"}`, `Secteur : ${values.sector || "—"}`,
-    "", values.message
+    ...answers.map(answer => `${answer.label} : ${answer.display}`)
   ].join("\n");
   try {
     const transport = createContactTransport(config);
@@ -126,8 +121,8 @@ export default async function contact(req, res) {
     const result = await transport.sendMail({
       from: { name: "Odyssée", address: sender },
       to: [{ address: recipient }],
-      replyTo: { address: values.email, name: values.name },
-      subject: `[Odyssée] ${SUBJECTS[values.subject]}`,
+      ...(visitorEmail ? { replyTo: { address: visitorEmail, name: visitorName } } : {}),
+      subject: `[Odyssée] ${subject || "Nouveau message du formulaire"}`,
       text: textContent,
       html: `<div style="font-family:Arial,sans-serif;line-height:1.6">${escapeHtml(textContent).replace(/\n/g, "<br>")}</div>`
     });

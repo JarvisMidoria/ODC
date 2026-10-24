@@ -1,4 +1,5 @@
 import { defineType, defineField } from 'sanity';
+import { DEFAULT_CONTACT_FIELDS, normalizeContactFields } from '../lib/contact-form.js';
 
 const f = (name, title, type = 'string', extra = {}) => defineField({ name, title, type, ...extra });
 const required = rule => rule.required();
@@ -8,6 +9,25 @@ const array = (name, title, type, extra = {}) => f(name, title, 'array', { of: [
 const conditional = kind => ({ hidden: ({ parent }) => parent?.kind !== kind });
 
 export const schemaTypes = [
+  defineType({ name: 'contactFormOption', title: 'Choix de réponse', type: 'object', fields: [
+    f('label', 'Libellé du choix', 'string', { validation: rule => rule.required().max(160) }),
+    f('value', 'Identifiant conservé', 'string', { hidden: true, readOnly: true })
+  ], preview: { select: { title: 'label' } } }),
+  defineType({ name: 'contactFormField', title: 'Champ du formulaire', type: 'object', fields: [
+    f('label', 'Libellé du champ', 'string', { validation: rule => rule.required().max(160) }),
+    f('type', 'Type de réponse', 'string', { validation: required, options: { list: [
+      { title: 'Texte court', value: 'text' }, { title: 'Adresse email', value: 'email' }, { title: 'Téléphone', value: 'tel' },
+      { title: 'Texte long / message', value: 'textarea' }, { title: 'Liste de choix', value: 'select' },
+      { title: 'Case à cocher', value: 'checkbox' }, { title: 'Nombre', value: 'number' }
+    ] } }),
+    f('required', 'Réponse obligatoire', 'boolean', { initialValue: false, description: 'Pour une case à cocher, le visiteur devra cocher la case.' }),
+    f('placeholder', 'Exemple ou invitation à répondre', 'string', { validation: rule => rule.max(200), hidden: ({ parent }) => parent?.type === 'checkbox' }),
+    f('help', 'Texte d’aide sous le champ', 'string', { validation: rule => rule.max(300) }),
+    array('options', 'Choix proposés (ordre du formulaire)', 'contactFormOption', { hidden: ({ parent }) => parent?.type !== 'select', validation: rule => rule.custom((value, context) => context.parent?.type !== 'select' || (Array.isArray(value) && value.length >= 1 && value.length <= 30) || 'Ajoutez entre 1 et 30 choix.') }),
+    f('name', 'Identifiant conservé', 'string', { hidden: true, readOnly: true }),
+    f('defaultValue', 'Choix initial conservé', 'string', { hidden: true, readOnly: true }),
+    f('when', 'Condition conservée', 'object', { hidden: true, fields: [f('field', 'Champ'), f('value', 'Valeur')] })
+  ], initialValue: { type: 'text', required: false }, preview: { select: { title: 'label', type: 'type', required: 'required' }, prepare: ({ title, type, required: mandatory }) => ({ title: title || 'Nouveau champ', subtitle: `${type || 'Texte'} · ${mandatory ? 'Obligatoire' : 'Facultatif'}` }) } }),
   defineType({ name: 'richText', title: 'Texte mis en forme', type: 'array', of: [{ type: 'block',
     styles: [{ title: 'Paragraphe', value: 'normal' }, { title: 'Titre de section', value: 'h2' }, { title: 'Sous-titre', value: 'h3' }],
     lists: [{ title: 'Liste', value: 'bullet' }, { title: 'Liste numérotée', value: 'number' }],
@@ -59,11 +79,17 @@ export const schemaTypes = [
     f('wazeHref', 'Lien Waze', 'url', { validation: safeUrl }), f('appleHref', 'Lien Apple Maps', 'url', { validation: safeUrl })
   ], preview: { select: { title: 'city', subtitle: 'address' } } }),
   defineType({ name: 'clientGroup', title: 'Groupe de références', type: 'object', fields: [f('eyebrow', 'Surtitre'), f('title', 'Titre'), array('logos', 'Logos (ajouter ou réordonner)', 'managedImage')], preview: { select: { title: 'title' } } }),
-  defineType({ name: 'siteSettings', title: 'Navigation et coordonnées', type: 'document', groups: [{ name: 'identity', title: 'Identité' }, { name: 'navigation', title: 'Menus' }, { name: 'contact', title: 'Contact et showrooms' }], fields: [
+  defineType({ name: 'siteSettings', title: 'Navigation et coordonnées', type: 'document', groups: [{ name: 'identity', title: 'Identité' }, { name: 'navigation', title: 'Menus' }, { name: 'contact', title: 'Contact et showrooms' }, { name: 'form', title: 'Formulaire de contact' }], fields: [
     f('title', 'Nom du site', 'string', { group: 'identity' }), imageField('logo', 'Logo principal', { group: 'identity' }), imageField('footerLogo', 'Logo pied de page', { group: 'identity' }), imageField('contractLogo', 'Logo Contract', { group: 'identity' }),
     array('navigation', 'Menu principal', 'navigationLink', { group: 'navigation' }), array('contractNavigation', 'Menu Contract', 'navigationLink', { group: 'navigation' }), f('contactCta', 'Bouton de contact', 'string', { group: 'navigation' }),
     f('email', 'Email public', 'email', { group: 'contact' }), f('phone', 'Téléphone public', 'string', { group: 'contact' }),
-    f('contactTitle', 'Titre du formulaire', 'string', { group: 'contact' }), f('contactIntro', 'Introduction du formulaire', 'text', { group: 'contact' }),
+    f('contactTitle', 'Titre du formulaire', 'string', { group: 'form' }), f('contactIntro', 'Introduction du formulaire', 'text', { group: 'form' }),
+    f('contactSubmitLabel', 'Texte du bouton d’envoi', 'string', { group: 'form', initialValue: 'Envoyer', validation: rule => rule.max(80) }),
+    array('contactFields', 'Champs du formulaire (ajouter, supprimer ou réordonner)', 'contactFormField', {
+      group: 'form', initialValue: DEFAULT_CONTACT_FIELDS, options: { disableActions: ['duplicate'] },
+      description: 'Publiez pour appliquer les changements au site. Les champs facultatifs peuvent rester vides. Le champ Secteur initial reste affiché uniquement pour les projets professionnels tant que le choix correspondant existe dans Sujet.',
+      validation: rule => rule.required().min(1).max(20).custom(value => { try { normalizeContactFields(value); return true; } catch (error) { return error.message; } })
+    }),
     array('showrooms', 'Showrooms (ordre du site)', 'showroom', { group: 'contact' }),
     array('socialLinks', 'Réseaux sociaux', 'navigationLink', { group: 'contact' })
   ], preview: { prepare: () => ({ title: 'Navigation, identité et coordonnées' }) } }),

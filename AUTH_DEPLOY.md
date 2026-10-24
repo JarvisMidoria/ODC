@@ -115,3 +115,7 @@ Le retrait des comptes et du serveur Render n'efface pas les factures impayées 
 - Parcours catalogue et favoris testés dans le navigateur, sur ordinateur et mobile. Le formulaire refuse correctement les soumissions vides ; les échecs n'effacent pas le texte saisi.
 - Render et son disque n'ont pas été supprimés. L'archive de production reste à récupérer après rétablissement de l'accès. Seule la copie locale est déjà archivée et vérifiée.
 - Aucun abonnement Vercel ou Render n'a été souscrit ou modifié. Le point de régularisation commerciale de Vercel Hobby reste à traiter par le propriétaire.
+
+### Champs du formulaire administrables dans Sanity
+
+Depuis le 24 octobre 2026, les champs, leurs types, choix, ordre et caractère obligatoire proviennent des réglages publiés Sanity. La configuration est générée au build dans `lib/contact-form-published.json` et partagée avec `POST /api/contact`. Toutes les réponses configurées et visibles sont incluses dans l’email ; les règles sont validées côté serveur. Un formulaire sans champ email est accepté sans adresse Reply-To. Les pages utilisant une ancienne configuration reçoivent HTTP 409 et doivent être actualisées après copie de la saisie. Le destinataire SMTP, la clé et le cron ne sont pas modifiables depuis Sanity. Voir CMS_DEPLOY.md pour le parcours de gestion et la migration non destructive.

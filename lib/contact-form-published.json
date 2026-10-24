@@ -1,0 +1,112 @@
+{
+  "version": "v1-542794c050d25e6551bc50a4",
+  "fields": [
+    {
+      "id": "name",
+      "label": "Nom",
+      "type": "text",
+      "required": true,
+      "placeholder": "Votre nom",
+      "help": "",
+      "options": [],
+      "defaultValue": ""
+    },
+    {
+      "id": "email",
+      "label": "Email",
+      "type": "email",
+      "required": true,
+      "placeholder": "vous@exemple.com",
+      "help": "",
+      "options": [],
+      "defaultValue": ""
+    },
+    {
+      "id": "phone",
+      "label": "Téléphone",
+      "type": "tel",
+      "required": false,
+      "placeholder": "+212 5223-69923",
+      "help": "",
+      "options": [],
+      "defaultValue": ""
+    },
+    {
+      "id": "subject",
+      "label": "Sujet",
+      "type": "select",
+      "required": true,
+      "placeholder": "",
+      "help": "",
+      "options": [
+        {
+          "value": "showroom",
+          "label": "Visite showroom"
+        },
+        {
+          "value": "residential",
+          "label": "Projet résidentiel"
+        },
+        {
+          "value": "professional",
+          "label": "Projet professionnel"
+        }
+      ],
+      "defaultValue": "showroom"
+    },
+    {
+      "id": "sector",
+      "label": "Secteur",
+      "type": "select",
+      "required": true,
+      "placeholder": "Sélectionner un secteur",
+      "help": "",
+      "options": [
+        {
+          "value": "hotellerie",
+          "label": "Hôtellerie"
+        },
+        {
+          "value": "restauration",
+          "label": "Restauration"
+        },
+        {
+          "value": "bureaux",
+          "label": "Bureaux"
+        },
+        {
+          "value": "medical",
+          "label": "Médical"
+        },
+        {
+          "value": "architecture",
+          "label": "Architecture"
+        },
+        {
+          "value": "immobilier",
+          "label": "Immobilier"
+        },
+        {
+          "value": "autre",
+          "label": "Autre"
+        }
+      ],
+      "defaultValue": "",
+      "when": {
+        "field": "subject",
+        "value": "professional"
+      }
+    },
+    {
+      "id": "message",
+      "label": "Message",
+      "type": "textarea",
+      "required": true,
+      "placeholder": "Décrivez votre besoin",
+      "help": "",
+      "options": [],
+      "defaultValue": ""
+    }
+  ],
+  "submitLabel": "Envoyer"
+}

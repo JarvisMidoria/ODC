@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { createClient } from '@sanity/client';
 import { buildSnapshot, CONTENT_TYPES } from '../cms/content-model.js';
+import { publishedContactForm } from './write-contact-form.mjs';
 
 const projectId = process.env.SANITY_API_PROJECT_ID || process.env.VITE_SANITY_PROJECT_ID;
 const dataset = process.env.SANITY_API_DATASET || process.env.VITE_SANITY_DATASET;
@@ -9,5 +10,7 @@ const client = createClient({ projectId, dataset, token: process.env.SANITY_API_
 const data = await client.fetch('{"documents": *[_type in $types], "assets": *[_type in ["sanity.imageAsset", "sanity.fileAsset"]]{_id,url}}', { types: CONTENT_TYPES });
 const snapshot = buildSnapshot(data.documents, data.assets);
 if (!snapshot.settings._id || !snapshot.pages.some(p => p.path === '/') || !snapshot.collections.length) throw new Error('Incomplete CMS configuration; keeping the current deployment.');
+const contactForm = publishedContactForm(snapshot.settings);
 await fs.writeFile('src/cms-published.json', JSON.stringify(data));
+await fs.writeFile('lib/contact-form-published.json', JSON.stringify(contactForm, null, 2) + '\n');
 console.log(`Sanity published content: ${snapshot.pages.length} pages, ${snapshot.products.length} products, ${snapshot.products.reduce((n,p) => n+p.colorways.length,0)} colorways.`);

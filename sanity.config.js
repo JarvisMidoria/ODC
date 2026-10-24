@@ -15,7 +15,7 @@ export default defineConfig({
       S.listItem().title('Catégories du catalogue').child(S.documentTypeList('collection').title('Catégories')),
       S.listItem().title('Marques partenaires').child(S.documentTypeList('brand').title('Marques partenaires')),
       S.divider(),
-      S.listItem().title('Navigation, logos et coordonnées').child(S.document().schemaType('siteSettings').documentId('odc.settings').title('Réglages du site'))
+      S.listItem().title('Navigation, logos et coordonnées').child(S.document().schemaType('siteSettings').documentId('odc.settings').title('Réglages du site').views([S.view.form(), S.view.component(Preview).title('Prévisualiser')]))
     ]),
     defaultDocumentNode: (S, { schemaType }) => S.document().views(['sitePage', 'product'].includes(schemaType) ? [S.view.form(), S.view.component(Preview).title('Prévisualiser')] : [S.view.form()])
   })],

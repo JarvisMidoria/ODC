@@ -56,3 +56,17 @@ Vercel conserve son abonnement existant. Le formulaire continue de fonctionner v
 - Branche de production Vercel confirmée : codex/sanity-cms ; affectation automatique des domaines activée.
 - Publication depuis le Studio avec GitHub : ajout de l’image de partage SEO de Histoire, en réutilisant sa photo existante. Sanity a reçu HTTP 201 du hook Vercel et lancé le déploiement de production dpl_FammMTwDrb1p6mYNmfZHGykA6FkG. Déploiement READY et image og:image effectivement présente dans le HTML public de /histoire/. Aucun texte visible de test n’a été publié.
 - Contrôle après promotion : SMTP vérifié par HEAD sans envoi, cron mensuel actif, aucune erreur du moniteur, preuve du test réel initial conservée.
+
+## Formulaire configurable (24 octobre 2026)
+
+Dans **Navigation, logos et coordonnées → Formulaire de contact**, l’équipe peut ajouter, supprimer et réordonner les champs, changer leur libellé, exemple et aide, et activer **Réponse obligatoire**. Types proposés : texte court, texte long, email, téléphone, nombre, liste de choix et case à cocher. Une liste contient de 1 à 30 choix ; le formulaire contient de 1 à 20 champs. Le titre, l’introduction et le bouton d’envoi sont aussi modifiables.
+
+**Prévisualiser** ouvre le formulaire du brouillon sans envoyer d’email. **Publier** déclenche le déploiement automatique ; attendre sa réussite pour voir les changements sur le site. Les champs initiaux et la condition Sujet professionnel → Secteur sont conservés. Si Sujet ou son choix professionnel est supprimé, Secteur devient un champ ordinaire ; il peut lui aussi être supprimé. Les champs possèdent un identifiant interne stable : renommer ou déplacer un champ ne change pas le sens de sa réponse.
+
+Chaque build produit `lib/contact-form-published.json` depuis les réglages publiés. Le navigateur et l’API partagent cette configuration et sa version : les règles obligatoires et choix sont vérifiés côté serveur, sans faire confiance aux libellés ou règles envoyés par le visiteur. L’email contient toutes les réponses visibles dans l’ordre du formulaire. La première adresse email renseignée sert d’adresse de réponse ; un formulaire sans champ email fonctionne mais ne permet pas de répondre directement au visiteur. Le destinataire reste une configuration serveur protégée. Les messages ne sont pas enregistrés dans le dataset public Sanity.
+
+Une page restée ouverte après une modification du formulaire reçoit une demande de copier ses réponses puis d’actualiser plutôt que de perdre silencieusement des champs. Une erreur SMTP conserve la saisie. La prévisualisation ne peut pas envoyer d’email ; le test mensuel et le moniteur restent inchangés.
+
+Migration initiale : `node --env-file=tmp/sanity-secrets/.env.local scripts/migrate-contact-form.mjs`. Ce script sauvegarde les réglages publiés et leur éventuel brouillon dans `data/archives/contact-form-before-*/settings.json`, puis ajoute uniquement les propriétés manquantes avec contrôle de révision. Déployer d’abord le nouveau code et pousser sa branche de production avant de migrer le document publié, car sa modification déclenche le webhook. L’option `--draft-only` prépare uniquement le brouillon pour une vérification avant déploiement.
+
+Validation : `node --test tests/*.test.mjs` couvre les champs personnalisés, suppression, obligation, choix, cases à cocher, email facultatif/absent, versions périmées, erreurs et contenu complet des emails avec transport SMTP simulé. Vérification réelle de la connexion SMTP par HEAD, sans email supplémentaire.
